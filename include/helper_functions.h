@@ -53,7 +53,7 @@ return_base_arena(const Arena_Handle *user_handle)
 }
 
 inline static bool
-mempool_handle_generation_lookup(const Arena *arena, const Arena_Handle *user_handle)
+mempool_handle_generation_checksum(const Arena *arena, const Arena_Handle *user_handle)
 {
 	const size_t row_index = user_handle->handle_matrix_index / TABLE_MAX_COL;
 	const size_t col_index = user_handle->handle_matrix_index % TABLE_MAX_COL;

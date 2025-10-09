@@ -19,7 +19,7 @@ void
 arena_destroy(Arena *restrict arena);
 
 static void
-arena_defragment(Arena *arena);
+arena_defragment(Arena *arena, Defrag_Type defrag);
 
 Arena_Handle
 arena_alloc(Arena *arena, size_t size);
@@ -31,7 +31,7 @@ void
 arena_free(Arena_Handle *user_handle);
 
 void *
-arena_deref(Arena_Handle *user_handle);
+arena_lock(Arena_Handle *user_handle);
 
 void
 arena_debug_print_memory_usage(const Arena *arena);

@@ -9,22 +9,16 @@ static Arena_Handle
 mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict head)
 {
 	Arena_Handle hdl = {};
-	if (head == NULL || arena == NULL || arena->first_mempool == NULL)
-	{
-		return hdl;
-	}
+	if (head == NULL || arena == NULL || arena->first_mempool == NULL) { return hdl; }
 
 	hdl.header = head;
 	hdl.addr = (void *)((char *)head + PD_HEAD_SIZE);
 	hdl.handle_matrix_index = (u_int32_t)arena->table_count * TABLE_MAX_COL + arena->handle_table[arena->table_count]->
-							  entries;
+	                          entries;
 	hdl.generation = 1;
 
-	if (arena->handle_table[arena->table_count]->entries + 1 > TABLE_MAX_COL ||
-		arena->handle_table[arena->table_count]->entries == TABLE_MAX_COL)
-	{
-		arena->handle_table[++arena->table_count] = mempool_new_handle_table(arena);
-	}
+	if (arena->handle_table[arena->table_count]->entries + 1 > TABLE_MAX_COL || arena->handle_table[arena->table_count]
+	    ->entries == TABLE_MAX_COL) { arena->handle_table[++arena->table_count] = mempool_new_handle_table(arena); }
 	Handle_Table *current_table = arena->handle_table[arena->table_count];
 	current_table->handle_entries[++current_table->entries] = hdl;
 
@@ -32,6 +26,11 @@ mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict 
 }
 
 
+/** @brief Creates a new handle table. Does not increment table_count by itself, do that before calling.
+ *
+ * @param arena The arena to create a new table on.
+ * @return a valid handle table if there is enough system memory.
+ */
 static Handle_Table *
 mempool_new_handle_table(Arena *restrict arena)
 {
@@ -39,7 +38,6 @@ mempool_new_handle_table(Arena *restrict arena)
 	if (arena->handle_table[arena->table_count] == NULL) { return NULL; }
 
 	Handle_Table *table = arena->handle_table[arena->table_count++];
-	table->capacity = TABLE_MAX_COL;
 	table->entries = 0;
 
 	return table;
@@ -61,10 +59,7 @@ mempool_new_handle_table(Arena *restrict arena)
 Mempool_Header *
 mempool_create_header(const Mempool *pool, const size_t size, const size_t offset, const Header_Block_Flags flag)
 {
-	if ((pool->mem_size - pool->mem_offset) < (mempool_add_padding(size) + PD_HEAD_SIZE))
-	{
-		goto mp_head_create_error;
-	}
+	if ((pool->mem_size - pool->mem_offset) < (mempool_add_padding(size) + PD_HEAD_SIZE)) { goto mp_head_create_error; }
 	Mempool_Header *head = NULL;
 
 	head = (Mempool_Header *)((char *)pool->mem + offset);
@@ -76,8 +71,8 @@ mempool_create_header(const Mempool *pool, const size_t size, const size_t offse
 
 	return head;
 
-	mp_head_create_error:
-		printf("error: not enough room in pool for header!\n");
+mp_head_create_error:
+	printf("error: not enough room in pool for header!\n");
 	fflush(stdout);
 	return NULL;
 }

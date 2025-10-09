@@ -88,9 +88,11 @@ arena_destroy(Arena *restrict arena)
  *	to the next non-free, then updates head->chunk_size of the first free.
  *
  *	@param arena Arena to defragment.
+ *	@param defrag_type 0 = light defragment. Quickly look through the headers and link empty ones.
+ *	1 = full defragment with relocation. (it will probably be a while before this is implemented)
  */
 static void
-arena_defragment(Arena *arena)
+arena_defragment(Arena *arena, Defrag_Type defrag)
 {
 	// wip
 }
@@ -108,8 +110,6 @@ arena_defragment(Arena *arena)
 Arena_Handle
 arena_alloc(Arena *arena, const size_t size)
 {
-	if (arena == NULL || size == 0 || arena->first_mempool == NULL) { return NULL; }
-
 	Arena_Handle user_handle = {
 		.addr = NULL,
 		.generation = 0,
@@ -117,15 +117,24 @@ arena_alloc(Arena *arena, const size_t size)
 		.header = NULL,
 	};
 
+	if (arena == NULL || size == 0 || arena->first_mempool == NULL) { goto arena_handle_err; }
+
 	const size_t input_bytes = mempool_add_padding(size);
+	if (input_bytes != size)
+	{
+		printf("debug: padding has been added. input: %lu, padded: %lu\n", size, input_bytes);
+		fflush(stdout);
+	}
 	Mempool_Header *head = NULL;
 
 	head = mempool_find_block(arena, input_bytes);
-	if (!head) { return user_handle; }
+	if (!head) { goto arena_handle_err; }
 	user_handle = mempool_create_handle_and_entry(arena, head);
 	if (user_handle.addr != NULL) { return user_handle; }
 
+arena_handle_err:
 	perror("error: invalid handle was given! things will break!\n");
+	fflush(stdout);
 	return user_handle;
 }
 
@@ -176,7 +185,7 @@ arena_free(Arena_Handle *user_handle)
 
 	const Arena *arena = return_base_arena(user_handle);
 
-	if (!mempool_handle_generation_lookup(arena, user_handle))
+	if (!mempool_handle_generation_checksum(arena, user_handle))
 	{
 		perror("error: stale handle detected!\n");
 		return;
@@ -188,10 +197,6 @@ arena_free(Arena_Handle *user_handle)
 }
 
 
-//inline static void
-//arena_freeze_handle(const Arena_Handle *handle) { handle->header->flags = FROZEN; }
-
-
 //Arena_Handle
 //arena_reallocate(Arena_Handle *user_handle, const size_t size)
 //{
@@ -199,18 +204,32 @@ arena_free(Arena_Handle *user_handle)
 
 
 void *
-arena_deref(Arena_Handle *user_handle)
+arena_lock(Arena_Handle *user_handle)
 {
 	const Arena *arena = return_base_arena(user_handle);
 
-	if (!mempool_handle_generation_lookup(arena, user_handle))
+	if (!mempool_handle_generation_checksum(arena, user_handle))
 	{
 		perror("error: stale handle detected!\n");
 		return NULL;
 	}
 
+	const size_t row = user_handle->handle_matrix_index / TABLE_MAX_COL;
+	const size_t col = user_handle->handle_matrix_index % TABLE_MAX_COL;
+
+	user_handle->generation++, arena->handle_table[row]->handle_entries[col].generation++;
+
 	user_handle->header->flags = FROZEN;
-	user_handle->addr = (void *)((char *)user_handle->addr + mempool_add_padding(sizeof(Mempool_Header)));
+	user_handle->addr = (void *)((char *)user_handle->header + PD_HEAD_SIZE);
+	return user_handle->addr;
+}
+
+
+void
+arena_unlock(Arena_Handle *user_handle)
+{
+	user_handle->header->flags = ALLOCATED;
+	arena_defragment(return_base_arena(user_handle), LIGHT_DEFRAG);
 }
 
 

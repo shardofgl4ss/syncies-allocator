@@ -24,6 +24,12 @@ typedef enum Header_Block_Flags {
 } Header_Block_Flags;
 
 
+typedef enum Defrag_Type {
+	LIGHT_DEFRAG = 0,
+	HEAVY_DEFRAG = 1,
+} Defrag_Type;
+
+
 /** @brief Memory pool data structure.
  *
  *	@details
