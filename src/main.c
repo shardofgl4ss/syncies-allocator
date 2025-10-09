@@ -81,6 +81,7 @@ typedef struct Mempool {
  */
 typedef struct Mempool_Header {
 	size_t chunk_size;						/**< Size of the header and block. */
+	u_int32_t pool_id;						/**< ID of the current pool. Used to detect cross-pool linkage. */
 	Header_Block_Flags flags;				/**< header-block flag. */
 	struct Mempool_Header *next_header;		/**< pointer to the next block in the chain. */
 	struct Mempool_Header *previous_header; /**< pointer to the previous block in the chain.*/
@@ -133,15 +134,15 @@ inline static size_t
 mempool_add_padding(const size_t input) { return (input + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1); }
 
 
-static constexpr u_int32_t ALIGNED_ARENA_SIZE = (sizeof(Arena) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
-static constexpr u_int32_t ALIGNED_POOL_SIZE = (sizeof(Mempool) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
-static constexpr u_int32_t ALIGNED_HEAD_SIZE = (sizeof(Mempool_Header) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
-static constexpr u_int32_t ALIGNED_RESERVED_F_SIZE =
-		(ALIGNED_ARENA_SIZE + ALIGNED_POOL_SIZE) + (ALIGNMENT - 1) & (size_t)~(ALIGNMENT - 1);
-static constexpr u_int32_t ALIGNED_HANDLE_SIZE = (sizeof(Arena_Handle) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
-static constexpr u_int32_t ALIGNED_TABLE_SIZE = (sizeof(Handle_Table) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
-static constexpr u_int32_t ALIGNED_HANDLE_TABLE_SIZE =
-		((TABLE_MAX_COL * ALIGNED_HANDLE_SIZE) + ALIGNED_TABLE_SIZE + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
+/* It is very important to have everything aligned in memory, so we should go out of our way to make it that way. *
+ * PD here stands for PADDED, F for FIRST as the first arena's pool is a special case.							  */
+#define PD_ARENA_SIZE		((sizeof(Arena) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1))
+#define PD_POOL_SIZE		((sizeof(Mempool) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1))
+#define PD_HEAD_SIZE		((sizeof(Mempool_Header) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1))
+#define PD_HANDLE_SIZE		((sizeof(Arena_Handle) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1))
+#define PD_TABLE_SIZE		((sizeof(Handle_Table) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1))
+#define PD_RESERVED_F_SIZE	((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1) & (size_t)~(ALIGNMENT - 1))
+#define PD_HDL_MATRIX_SIZE	(((PD_HANDLE_SIZE * TABLE_MAX_COL) + PD_TABLE_SIZE) + (ALIGNMENT - 1) & (size_t)~(ALIGNMENT - 1))
 
 
 inline static void *
@@ -154,7 +155,7 @@ mempool_map_mem(const size_t bytes)
 static Handle_Table *
 mempool_new_handle_table(Arena *restrict arena)
 {
-	arena->handle_table[arena->table_count] = mempool_map_mem(ALIGNED_HANDLE_TABLE_SIZE);
+	arena->handle_table[arena->table_count] = mempool_map_mem(ALIGNED_HDL_TBL_SIZE);
 	if (arena->handle_table[arena->table_count] == NULL) { return NULL; }
 
 	Handle_Table *table = arena->handle_table[arena->table_count++];
@@ -288,7 +289,10 @@ arena_destroy(Arena *restrict arena)
 Mempool_Header *
 mempool_create_header(const Mempool *pool, const size_t size, const size_t offset, const Header_Block_Flags flag)
 {
-	if ((pool->mem_size - pool->mem_offset) < size) { goto mp_head_create_error; }
+	if ((pool->mem_size - pool->mem_offset) < (mempool_add_padding(size) + ALIGNED_HEAD_SIZE))
+	{
+		goto mp_head_create_error;
+	}
 	Mempool_Header *head = NULL;
 
 	head = (Mempool_Header *)((char *)pool->mem + offset);
@@ -358,7 +362,6 @@ mp_internal_error:
 static Mempool_Header *
 mempool_find_block(Arena *arena, const size_t requested_size)
 {
-	if (!arena) { goto find_block_error; }
 	Mempool_Header *head = (Mempool_Header *)((char *)arena->first_mempool->mem);
 	const Mempool *pool = arena->first_mempool;
 
@@ -437,7 +440,7 @@ return_vptr(Mempool_Header *head) { return (char *)head + ALIGNED_HEAD_SIZE; }
  *
  *	@param arena Pointer to the arena to work on.
  *	@param size How many bytes the user requests.
- *	@return vptr to the arena heap memory block.
+ *	@return arena handle to the user, use instead of a vptr.
  *
  *	@note All size is rounded up to the nearest value of ALIGNMENT, and a minimum valid size is 8 bytes.
  *	@warning If a size of zero is provided or a sub-function fails, NULL is returned.
@@ -445,30 +448,23 @@ return_vptr(Mempool_Header *head) { return (char *)head + ALIGNED_HEAD_SIZE; }
 Arena_Handle *
 arena_alloc(Arena *arena, const size_t size)
 {
-	if (!arena) { goto mp_alloc_error; }
+	if (arena == NULL || size == 0 || arena->first_mempool == NULL) { return NULL; }
+
 	Mempool *first_pool = arena->first_mempool;
+	const size_t input_bytes = mempool_add_padding(size);
+	Mempool_Header *head = NULL;
 
-	if (size == 0 || !first_pool) { goto mp_alloc_error; }
-
-	const size_t total_size = mempool_add_padding(sizeof(Mempool_Header) + mempool_add_padding(size));
-
-	Mempool_Header *current_head = NULL;
-	Mempool *current_pool = first_pool;
-
-mp_alloc_error:
-	perror("error: could not return a valid block!\n");
-	fflush(stdout);
-	return NULL;
+	head = mempool_find_block(arena, input_bytes);
+	if (!head) { return NULL; }
+	return return_vptr(head);
 }
 
 
 inline static bool
 mempool_handle_generation_lookup(const Arena *arena, const Arena_Handle *user_handle)
 {
-	const u_int32_t max_columns = return_min_handle_bytes();
-
-	const size_t row_index = user_handle->handle_matrix_index / max_columns;
-	const size_t col_index = user_handle->handle_matrix_index % max_columns;
+	const size_t row_index = user_handle->handle_matrix_index / TABLE_MAX_COL;
+	const size_t col_index = user_handle->handle_matrix_index % TABLE_MAX_COL;
 
 	if (arena->handle_table[row_index]->handle_entries[col_index].generation != user_handle->generation)
 	{
@@ -480,8 +476,10 @@ mempool_handle_generation_lookup(const Arena *arena, const Arena_Handle *user_ha
 
 /**
  * @brief Clears all pools, deleting all but the first pool, performing a full reset, unless 1 is given.
- * If 1 is given, the first pool will not be reset.
- * @param arena
+ * @param arena The arena to reset.
+ * @param reset_type 0: Will full reset the entire arena.
+ * 1: Will soft reset the arena, not deallocating excess pools.
+ * 2: Will do the same as 0, but will not wipe the first arena.
  */
 void
 arena_reset(const Arena *restrict arena, const int reset_type)
@@ -490,31 +488,27 @@ arena_reset(const Arena *restrict arena, const int reset_type)
 
 	switch (reset_type)
 	{
-		case 0:
-			goto reset_hard;
 		case 1:
-			goto reset_soft;
+		mp_soft_reset:
+			pool->mem_offset = 0;
+			return;
+		case 0:
+			pool->mem_offset = 0;
 		case 2:
-			goto reset_keep_first;
+			if (!pool->next_pool) { return; }
+
+			while (pool->next_pool)
+			{
+				pool = pool->next_pool;
+				munmap(pool->prev_pool->mem, pool->prev_pool->mem_size + ALIGNED_POOL_SIZE);
+				pool->prev_pool->next_pool = NULL;
+				pool->prev_pool = NULL;
+			}
+			arena->first_mempool->mem = (char *)0;
+			break;
 		default:
 			printf("debug: unknown arena_reset() type!\nDefaulting to soft reset!\n");
-	}
-
-reset_soft:
-	pool->mem_offset = 0;
-	return;
-
-reset_hard:
-	pool->mem_offset = 0;
-reset_keep_first:
-	if (!pool->next_pool) { return; }
-
-	while (pool->next_pool)
-	{
-		pool = pool->next_pool;
-		munmap(pool->prev_pool->mem, pool->prev_pool->mem_size + ALIGNED_POOL_SIZE);
-		pool->prev_pool->next_pool = NULL;
-		pool->prev_pool = NULL;
+			goto mp_soft_reset;
 	}
 }
 
@@ -525,7 +519,7 @@ return_base_arena(const Arena_Handle *user_handle)
 	Mempool_Header *head = user_handle->header;
 
 	if (head->previous_header) { while (head->previous_header) { head = head->previous_header; } }
-	return (Arena *)((char *)head - (mempool_add_padding(sizeof(Mempool)) + mempool_add_padding(sizeof(Arena))));
+	return (Arena *)((char *)head - (ALIGNED_POOL_SIZE + mempool_add_padding(sizeof(Arena))));
 }
 
 
