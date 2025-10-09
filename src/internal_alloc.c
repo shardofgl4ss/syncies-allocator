@@ -84,7 +84,7 @@ mp_head_create_error:
  *	@return	Returns a pointer to the new memory pool.
  *
  *	@note Should not be used by the user, only by the allocator.
- *	Handles linking pools, and updating the total_mem_size in the first pool.
+ *	Handles linking pools, and updating the total_mem_size in the arena struct.
  *	@warning Returns NULL if allocating a new pool fails, or if provided size is zero.
  */
 static Mempool *

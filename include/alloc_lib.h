@@ -31,7 +31,10 @@ void
 arena_free(Arena_Handle *user_handle);
 
 void *
-arena_lock(Arena_Handle *user_handle);
+handle_lock(Arena_Handle *user_handle);
+
+void
+handle_unlock(Arena_Handle *user_handle);
 
 void
 arena_debug_print_memory_usage(const Arena *arena);

@@ -200,11 +200,13 @@ arena_free(Arena_Handle *user_handle)
 //Arena_Handle
 //arena_reallocate(Arena_Handle *user_handle, const size_t size)
 //{
+// its probably best to memcpy here to allow reallocation, and track
+// the address by updating the handle if it is not locked.
 //}
 
 
 void *
-arena_lock(Arena_Handle *user_handle)
+handle_lock(Arena_Handle *user_handle)
 {
 	const Arena *arena = return_base_arena(user_handle);
 
@@ -213,11 +215,7 @@ arena_lock(Arena_Handle *user_handle)
 		perror("error: stale handle detected!\n");
 		return NULL;
 	}
-
-	const size_t row = user_handle->handle_matrix_index / TABLE_MAX_COL;
-	const size_t col = user_handle->handle_matrix_index % TABLE_MAX_COL;
-
-	user_handle->generation++, arena->handle_table[row]->handle_entries[col].generation++;
+	user_handle->generation++;
 
 	user_handle->header->flags = FROZEN;
 	user_handle->addr = (void *)((char *)user_handle->header + PD_HEAD_SIZE);
@@ -226,10 +224,22 @@ arena_lock(Arena_Handle *user_handle)
 
 
 void
-arena_unlock(Arena_Handle *user_handle)
+handle_unlock(Arena_Handle *user_handle)
 {
+	Arena *arena = return_base_arena(user_handle);
+
+	const size_t row = user_handle->handle_matrix_index / TABLE_MAX_COL;
+	const size_t col = user_handle->handle_matrix_index % TABLE_MAX_COL;
+
+	arena->handle_table[row]->handle_entries[col].generation++;
+
+	if (!mempool_handle_generation_checksum(arena, user_handle))
+	{
+		perror("error: stale handle detected! not continuing!\n");
+		return;
+	}
 	user_handle->header->flags = ALLOCATED;
-	arena_defragment(return_base_arena(user_handle), LIGHT_DEFRAG);
+	arena_defragment(arena, LIGHT_DEFRAG);
 }
 
 
