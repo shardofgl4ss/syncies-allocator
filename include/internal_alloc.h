@@ -8,7 +8,7 @@
 #include "helper_functions.h"
 
 static Arena_Handle
-mempool_create_handle_and_entry(const Arena *restrict arena, Mempool_Header *restrict head);
+mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict head);
 
 static Handle_Table *
 mempool_new_handle_table(Arena *restrict arena);

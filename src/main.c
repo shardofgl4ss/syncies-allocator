@@ -7,7 +7,7 @@ main(void)
 	Arena *arena = arena_create();
 	if (!arena) return 0;
 
-	char *test = arena_alloc(arena, 64);
+	Arena_Handle test = arena_alloc(arena, 64);
 	if (!test) return 0;
 
 

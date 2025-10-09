@@ -6,15 +6,27 @@
 
 
 static Arena_Handle
-mempool_create_handle_and_entry(const Arena *restrict arena, Mempool_Header *restrict head)
+mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict head)
 {
-	Arena_Handle hdl;
+	Arena_Handle hdl = {};
+	if (head == NULL || arena == NULL || arena->first_mempool == NULL)
+	{
+		return hdl;
+	}
 
 	hdl.header = head;
 	hdl.addr = (void *)((char *)head + PD_HEAD_SIZE);
 	hdl.handle_matrix_index = (u_int32_t)arena->table_count * TABLE_MAX_COL + arena->handle_table[arena->table_count]->
 							  entries;
 	hdl.generation = 1;
+
+	if (arena->handle_table[arena->table_count]->entries + 1 > TABLE_MAX_COL ||
+		arena->handle_table[arena->table_count]->entries == TABLE_MAX_COL)
+	{
+		arena->handle_table[++arena->table_count] = mempool_new_handle_table(arena);
+	}
+	Handle_Table *current_table = arena->handle_table[arena->table_count];
+	current_table->handle_entries[++current_table->entries] = hdl;
 
 	return hdl;
 }

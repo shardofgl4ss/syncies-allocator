@@ -81,25 +81,19 @@ arena_destroy(Arena *restrict arena)
 }
 
 
-
 /**	@brief Clears up defragmentation of the memory pool where there is any.
  *
  *	@details Indexes through the memory pool from first to last,
  *	if there are two adjacent blocks that are free, links the first free
  *	to the next non-free, then updates head->chunk_size of the first free.
  *
- *	@param head Pointer to a header to index through. Can be any header.
+ *	@param arena Arena to defragment.
  */
 static void
 arena_defragment(Arena *arena)
 {
+	// wip
 }
-
-
-/// @brief Returns the voidptr of a valid header's block.
-/// @param head Header ptr to the header to do ptr arithmetic,
-/// to calculate the location of the block.
-
 
 
 /** @brief Allocates a new block of memory.
@@ -111,18 +105,28 @@ arena_defragment(Arena *arena)
  *	@note All size is rounded up to the nearest value of ALIGNMENT, and a minimum valid size is 8 bytes.
  *	@warning If a size of zero is provided or a sub-function fails, NULL is returned.
  */
-Arena_Handle *
+Arena_Handle
 arena_alloc(Arena *arena, const size_t size)
 {
 	if (arena == NULL || size == 0 || arena->first_mempool == NULL) { return NULL; }
 
-	Mempool *first_pool = arena->first_mempool;
+	Arena_Handle user_handle = {
+		.addr = NULL,
+		.generation = 0,
+		.handle_matrix_index = 0,
+		.header = NULL,
+	};
+
 	const size_t input_bytes = mempool_add_padding(size);
 	Mempool_Header *head = NULL;
 
 	head = mempool_find_block(arena, input_bytes);
-	if (!head) { return NULL; }
-	return return_vptr(head);
+	if (!head) { return user_handle; }
+	user_handle = mempool_create_handle_and_entry(arena, head);
+	if (user_handle.addr != NULL) { return user_handle; }
+
+	perror("error: invalid handle was given! things will break!\n");
+	return user_handle;
 }
 
 

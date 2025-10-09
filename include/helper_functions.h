@@ -36,6 +36,10 @@ destroy_fail:
 	fflush(stdout);
 }
 
+
+/// @brief Returns the voidptr of a valid header's block.
+/// @param head Header ptr to the header to do ptr arithmetic,
+/// to calculate the location of the block.
 inline static void *
 return_vptr(Mempool_Header *head) { return (char *)head + PD_HEAD_SIZE; }
 

@@ -100,7 +100,7 @@ typedef struct Arena_Handle {
  */
 typedef struct Handle_Table {
 	u_int32_t entries;				/**< how many handles there are in this table.	  */
-	u_int32_t capacity;				/**< how many handles can fit in this table.      */
+	//u_int32_t capacity;				/**< how many handles can fit in this table.  */
 	Arena_Handle handle_entries[];	/**< array of entries via FAM. index via entries. */
 } Handle_Table;
 

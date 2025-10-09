@@ -21,7 +21,7 @@ arena_destroy(Arena *restrict arena);
 static void
 arena_defragment(Arena *arena);
 
-Arena_Handle *
+Arena_Handle
 arena_alloc(Arena *arena, size_t size);
 
 void
