@@ -44,7 +44,7 @@ inline static void *
 return_vptr(Mempool_Header *head) { return (char *)head + PD_HEAD_SIZE; }
 
 inline static Arena *
-return_base_arena(const Arena_Handle *user_handle)
+return_base_arena(const Arena_Handle *restrict user_handle)
 {
 	Mempool_Header *head = user_handle->header;
 
@@ -63,6 +63,16 @@ mempool_handle_generation_checksum(const Arena *arena, const Arena_Handle *user_
 		return false;
 	}
 	return true;
+}
+
+inline static void
+mempool_update_table_generation(const Arena_Handle *restrict hdl)
+{
+	const Arena *restrict arena = return_base_arena(hdl);
+	const size_t row = hdl->handle_matrix_index / TABLE_MAX_COL;
+	const size_t col = hdl->handle_matrix_index % TABLE_MAX_COL;
+
+	arena->handle_table[row]->handle_entries[col].generation++;
 }
 
 #endif //ARENA_ALLOCATOR_HELPER_FUNCTIONS_H

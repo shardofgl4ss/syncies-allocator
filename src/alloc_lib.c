@@ -4,17 +4,9 @@
 
 #include "../include/alloc_lib.h"
 
+#include <string.h>
 
-/**	@brief Creates a dynamic, automatically resizing arena with base size of 16KiB.
- *
- *	Example: @code Arena *arena = arena_create(); @endcode
- *
- *	@return Pointer to the very first memory pool, required for indexing.
- *
- *	@warning If heap allocation fails, NULL is returned.
- *	The user should also never interact with the Mempool struct
- *	beyond storing and passing it.
- */
+
 Arena *
 arena_create()
 {
@@ -50,8 +42,6 @@ mp_create_error:
 }
 
 
-/// @brief Destroys a whole arena, deallocating it and setting all values to NULL or 0
-/// @param arena The arena to destroy
 void
 arena_destroy(Arena *restrict arena)
 {
@@ -81,16 +71,6 @@ arena_destroy(Arena *restrict arena)
 }
 
 
-/**	@brief Clears up defragmentation of the memory pool where there is any.
- *
- *	@details Indexes through the memory pool from first to last,
- *	if there are two adjacent blocks that are free, links the first free
- *	to the next non-free, then updates head->chunk_size of the first free.
- *
- *	@param arena Arena to defragment.
- *	@param defrag_type 0 = light defragment. Quickly look through the headers and link empty ones.
- *	1 = full defragment with relocation. (it will probably be a while before this is implemented)
- */
 static void
 arena_defragment(Arena *arena, Defrag_Type defrag)
 {
@@ -98,15 +78,6 @@ arena_defragment(Arena *arena, Defrag_Type defrag)
 }
 
 
-/** @brief Allocates a new block of memory.
- *
- *	@param arena Pointer to the arena to work on.
- *	@param size How many bytes the user requests.
- *	@return arena handle to the user, use instead of a vptr.
- *
- *	@note All size is rounded up to the nearest value of ALIGNMENT, and a minimum valid size is 8 bytes.
- *	@warning If a size of zero is provided or a sub-function fails, NULL is returned.
- */
 Arena_Handle
 arena_alloc(Arena *arena, const size_t size)
 {
@@ -139,13 +110,6 @@ arena_handle_err:
 }
 
 
-/**
- * @brief Clears all pools, deleting all but the first pool, performing a full reset, unless 1 is given.
- * @param arena The arena to reset.
- * @param reset_type 0: Will full reset the entire arena.
- * 1: Will soft reset the arena, not deallocating excess pools.
- * 2: Will do the same as 0, but will not wipe the first arena.
- */
 void
 arena_reset(const Arena *restrict arena, const int reset_type)
 {
@@ -172,7 +136,6 @@ arena_reset(const Arena *restrict arena, const int reset_type)
 			arena->first_mempool->mem = (char *)0;
 			break;
 		default:
-			printf("debug: unknown arena_reset() type!\nDefaulting to soft reset!\n");
 			goto mp_soft_reset;
 	}
 }
@@ -183,7 +146,7 @@ arena_free(Arena_Handle *user_handle)
 {
 	Mempool_Header *head = user_handle->header;
 
-	const Arena *arena = return_base_arena(user_handle);
+	Arena *arena = return_base_arena(user_handle);
 
 	if (!mempool_handle_generation_checksum(arena, user_handle))
 	{
@@ -194,19 +157,42 @@ arena_free(Arena_Handle *user_handle)
 	user_handle->header->flags = 1;
 	user_handle->generation++;
 	user_handle->addr = NULL;
+
+	arena_defragment(arena, 0);
 }
 
 
-//Arena_Handle
-//arena_reallocate(Arena_Handle *user_handle, const size_t size)
-//{
-// its probably best to memcpy here to allow reallocation, and track
-// the address by updating the handle if it is not locked.
-//}
+int
+arena_realloc(Arena_Handle *user_handle, size_t size)
+{
+	// it's probably best to memcpy here to allow reallocation, and track
+	// the address by updating the handle if it is not locked.
+	if (user_handle->header->flags == FROZEN || user_handle == NULL) { return 1; }
+	size = mempool_add_padding(size);
+
+	Mempool_Header *old_head = user_handle->header;
+	Arena *arena = return_base_arena(user_handle);
+	Mempool_Header *new_head = mempool_find_block(arena, size);
+	if (!new_head) { return 1; }
+
+	void *old_block = (char *)old_head + PD_HEAD_SIZE;
+	void *new_block = (char *)new_head + PD_HEAD_SIZE;
+	if (!old_block || !new_block) { return 1; }
+	/* if there is a new head and nothing is null then it's all good to go for reallocation. */
+
+	memcpy(new_block, old_block, old_head->chunk_size - PD_HEAD_SIZE);
+	user_handle->generation++;
+	user_handle->header = new_head;
+	user_handle->addr = new_block;
+
+	old_head->flags = FREE;
+
+	return 0;
+}
 
 
 void *
-handle_lock(Arena_Handle *user_handle)
+handle_lock(Arena_Handle *restrict user_handle)
 {
 	const Arena *arena = return_base_arena(user_handle);
 
@@ -218,8 +204,8 @@ handle_lock(Arena_Handle *user_handle)
 	user_handle->generation++;
 
 	user_handle->header->flags = FROZEN;
-	user_handle->addr = (void *)((char *)user_handle->header + PD_HEAD_SIZE);
-	return user_handle->addr;
+
+	return (user_handle->addr = (void *)((char *)user_handle->header + PD_HEAD_SIZE));
 }
 
 
@@ -227,11 +213,7 @@ void
 handle_unlock(Arena_Handle *user_handle)
 {
 	Arena *arena = return_base_arena(user_handle);
-
-	const size_t row = user_handle->handle_matrix_index / TABLE_MAX_COL;
-	const size_t col = user_handle->handle_matrix_index % TABLE_MAX_COL;
-
-	arena->handle_table[row]->handle_entries[col].generation++;
+	mempool_update_table_generation(user_handle);
 
 	if (!mempool_handle_generation_checksum(arena, user_handle))
 	{
@@ -239,6 +221,7 @@ handle_unlock(Arena_Handle *user_handle)
 		return;
 	}
 	user_handle->header->flags = ALLOCATED;
+	user_handle->addr = NULL;
 	arena_defragment(arena, LIGHT_DEFRAG);
 }
 
