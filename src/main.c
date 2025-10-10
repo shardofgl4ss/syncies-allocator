@@ -11,7 +11,6 @@ main(void)
 	char *test = handle_lock(&hdl);
 	if (!test) return 0;
 
-
 	fgets(test, 64, stdin);
 
 	printf("%s\n", test);

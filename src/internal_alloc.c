@@ -19,6 +19,7 @@ mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict 
 
 	if (arena->handle_table[arena->table_count]->entries + 1 > TABLE_MAX_COL || arena->handle_table[arena->table_count]
 	    ->entries == TABLE_MAX_COL) { arena->handle_table[++arena->table_count] = mempool_new_handle_table(arena); }
+
 	Handle_Table *current_table = arena->handle_table[arena->table_count];
 	current_table->handle_entries[++current_table->entries] = hdl;
 
@@ -26,11 +27,6 @@ mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict 
 }
 
 
-/** @brief Creates a new handle table. Does not increment table_count by itself, do that before calling.
- *
- * @param arena The arena to create a new table on.
- * @return a valid handle table if there is enough system memory.
- */
 static Handle_Table *
 mempool_new_handle_table(Arena *restrict arena)
 {
@@ -44,30 +40,18 @@ mempool_new_handle_table(Arena *restrict arena)
 }
 
 
-/**	@brief Creates a new block header
- *
- *	@details Flag options: 0 = NOT_FREE, 1 = FREE, 2 = RESERVED
- *
- *	@param pool Pointer to the pool to create the header in.
- *	@param size Size of the block and header.
- *	@param offset How many bytes from the base of the pool.
- *	@param flag The flag to give the header.
- *	@return a valid block header pointer.
- *
- *	@note Does not link headers.
- */
 Mempool_Header *
-mempool_create_header(const Mempool *pool, const size_t size, const size_t offset, const Header_Block_Flags flag)
+mempool_create_header(Mempool *restrict pool, const size_t size, const size_t offset, const u_int32_t pool_id)
 {
 	if ((pool->mem_size - pool->mem_offset) < (mempool_add_padding(size) + PD_HEAD_SIZE)) { goto mp_head_create_error; }
 	Mempool_Header *head = NULL;
 
 	head = (Mempool_Header *)((char *)pool->mem + offset);
-	if (!head) { goto mp_head_create_error; }
-	head->flags = flag;
-	head->chunk_size = size;
+	head->flags = ALLOCATED;
+	head->block_size = size;
 	head->next_header = NULL;
 	head->previous_header = NULL;
+	head->pool_id = pool_id;
 
 	return head;
 
@@ -78,15 +62,6 @@ mp_head_create_error:
 }
 
 
-/** @brief Creates a new memory pool.
- *	@param arena Pointer to the arena to create a new pool in.
- *	@param size How many bytes to give to the new pool.
- *	@return	Returns a pointer to the new memory pool.
- *
- *	@note Should not be used by the user, only by the allocator.
- *	Handles linking pools, and updating the total_mem_size in the arena struct.
- *	@warning Returns NULL if allocating a new pool fails, or if provided size is zero.
- */
 static Mempool *
 mempool_create_internal_pool(Arena *restrict arena, const size_t size)
 {
@@ -95,7 +70,7 @@ mempool_create_internal_pool(Arena *restrict arena, const size_t size)
 
 	void *raw = mempool_map_mem(size + PD_POOL_SIZE);
 
-	if (MAP_FAILED == raw) { goto mp_internal_error; }
+	if (!raw) { goto mp_internal_error; }
 
 	Mempool *new_pool = raw;
 	new_pool->mem = (char *)raw + PD_POOL_SIZE;
@@ -118,65 +93,82 @@ mp_internal_error:
 }
 
 
-/** @brief Analyzes the header-block chain, making a new header if there is no free one to use.
- *	If there is no space at all in the pool, it will create a new pool for it.
- *	@param arena The given arena to find a block in.
- *	@param requested_size User-requested size, aligned by ALIGNMENT.
- *	@return header of a valid block, if creating one was successful.
- *
- *	@warning Will return NULL if a new pool's header could not be made, which should be impossible.
- */
 static Mempool_Header *
 mempool_find_block(Arena *arena, const size_t requested_size)
 {
-	Mempool_Header *head = (Mempool_Header *)((char *)arena->first_mempool->mem);
-	const Mempool *pool = arena->first_mempool;
+	if (!arena || requested_size == 0 || arena->first_mempool->mem_size == 0) { return NULL; }
+	Mempool *pool = arena->first_mempool;
+	u_int32_t pool_idx = 0;
 
-	while (head->next_header)
+	if (pool->mem_offset == 0)
 	{
-		if (FREE == head->flags && head->chunk_size >= requested_size)
-		{
-			head->flags = ALLOCATED;
-			if (head->chunk_size == requested_size) { return head; }
-			if (head->chunk_size > requested_size)
-			{
-				/* If the chunk size is bigger then the requested size, split it. */
-			}
-		}
-		head = head->next_header;
+		// there is no first header if the offset is zero.
+		return mempool_create_header(pool, requested_size, pool->mem_offset, pool_idx);
 	}
 
-fb_pool_create:
-	Mempool_Header *new_head = mempool_create_header(pool, requested_size, pool->mem_offset, ALLOCATED);
-	if (!new_head)
+	const size_t chunk_size = requested_size + PD_HEAD_SIZE;
+	Mempool_Header *head = (Mempool_Header *)((char *)pool->mem);
+
+	while (head->next_header != NULL)
 	{
-		if (!pool->next_pool)
+		if (head->flags == FREE)
 		{
-			// Keep escalating the new size of the pool if it cant fit the allocation, until it can.
-			size_t new_pool_size = pool->mem_size * 2;
-			while (new_pool_size < requested_size) { new_pool_size *= 2; }
-
-			const Mempool *new_pool = mempool_create_internal_pool(arena, new_pool_size);
-
-			Mempool_Header *new_pool_head = mempool_create_header(new_pool, requested_size, 0, ALLOCATED);
-			if (NULL == new_pool_head)
+			if (head->block_size == requested_size || head->block_size < requested_size + PD_HEAD_SIZE) { return head; }
+			if (head->block_size > requested_size + PD_HEAD_SIZE)
 			{
-				printf("mempool_find_block ERROR: new pool header failed to be created!");
-				goto find_block_error;
 			}
-
-			new_pool_head->previous_header = head;
-			head->next_header = new_pool_head;
-
-			return new_pool_head;
 		}
-		pool = pool->next_pool;
-		goto fb_pool_create;
 	}
-	return new_head;
 
-find_block_error:
-	perror("mempool_find_block could not find a valid block!\n");
-	fflush(stdout);
-	return NULL;
+
+	//	Mempool_Header *head = (Mempool_Header *)((char *)arena->first_mempool->mem);
+	//	const Mempool *pool = arena->first_mempool;
+	//
+	//	while (head->next_header)
+	//	{
+	//		if (FREE == head->flags && head->chunk_size >= requested_size)
+	//		{
+	//			head->flags = ALLOCATED;
+	//			if (head->chunk_size == requested_size) { return head; }
+	//			if (head->chunk_size > requested_size)
+	//			{
+	//				/* If the chunk size is bigger then the requested size, split it. */
+	//			}
+	//		}
+	//		head = head->next_header;
+	//	}
+	//
+	//fb_pool_create:
+	//	Mempool_Header *new_head = mempool_create_header(pool, requested_size, pool->mem_offset, ALLOCATED);
+	//	if (!new_head)
+	//	{
+	//		if (!pool->next_pool)
+	//		{
+	//			// Keep escalating the new size of the pool if it cant fit the allocation, until it can.
+	//			size_t new_pool_size = pool->mem_size * 2;
+	//			while (new_pool_size < requested_size) { new_pool_size *= 2; }
+	//
+	//			const Mempool *new_pool = mempool_create_internal_pool(arena, new_pool_size);
+	//
+	//			Mempool_Header *new_pool_head = mempool_create_header(new_pool, requested_size, 0, ALLOCATED);
+	//			if (NULL == new_pool_head)
+	//			{
+	//				printf("mempool_find_block ERROR: new pool header failed to be created!");
+	//				goto find_block_error;
+	//			}
+	//
+	//			new_pool_head->previous_header = head;
+	//			head->next_header = new_pool_head;
+	//
+	//			return new_pool_head;
+	//		}
+	//		pool = pool->next_pool;
+	//		goto fb_pool_create;
+	//	}
+	//	return new_head;
+	//
+	//find_block_error:
+	//	perror("mempool_find_block could not find a valid block!\n");
+	//	fflush(stdout);
+	//	return NULL;
 }

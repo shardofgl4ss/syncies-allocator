@@ -20,12 +20,12 @@
  *	The user should also never interact with the Mempool struct
  *	beyond storing and passing it.
  */
-Arena *
+extern Arena *
 arena_create();
 
 /// @brief Destroys a whole arena, deallocating it and setting all values to NULL or 0
 /// @param arena The arena to destroy
-void
+extern void
 arena_destroy(Arena *restrict arena);
 
 /**	@brief Clears up defragmentation of the memory pool where there is any.
@@ -38,7 +38,7 @@ arena_destroy(Arena *restrict arena);
  *	@param defrag_type 0 = light defragment. Quickly look through the headers and link empty ones.
  *	1 = full defragment with relocation. (it will probably be a while before this is implemented)
  */
-static void
+extern void
 arena_defragment(Arena *arena, Defrag_Type defrag);
 
 /** @brief Allocates a new block of memory.
@@ -50,7 +50,7 @@ arena_defragment(Arena *arena, Defrag_Type defrag);
  *	@note All size is rounded up to the nearest value of ALIGNMENT, and a minimum valid size is 8 bytes.
  *	@warning If a size of zero is provided or a sub-function fails, NULL is returned.
  */
-Arena_Handle
+extern Arena_Handle
 arena_alloc(Arena *arena, size_t size);
 
 /**
@@ -60,7 +60,7 @@ arena_alloc(Arena *arena, size_t size);
  * 1: Will soft reset the arena, not deallocating excess pools.
  * 2: Will do the same as 0, but will not wipe the first arena.
  */
-void
+extern void
 arena_reset(const Arena *restrict arena, int reset_type);
 
 /**	@brief Marks an allocated block via a user's handle as free,
@@ -68,7 +68,7 @@ arena_reset(const Arena *restrict arena, int reset_type);
  *
  *	@param user_handle The handle to mark as free.
  */
-void
+extern void
 arena_free(Arena_Handle *user_handle);
 
 /** @brief Reallocates a user's block.
@@ -80,7 +80,7 @@ arena_free(Arena_Handle *user_handle);
  *
  *	@note If the handle is frozen and reallocation is attempted, nothing will happen.
  */
-int
+extern int
 arena_realloc(Arena_Handle *user_handle, size_t size);
 
 /** @brief Locks a handle for the user to use.
@@ -88,19 +88,19 @@ arena_realloc(Arena_Handle *user_handle, size_t size);
  *	@return vptr to the block of user memory.
  *	@note When finished, the handle should be unlocked to allow defragmentation.
  */
-void *
+extern void *
 handle_lock(Arena_Handle *user_handle);
 
 /**	@brief Unlocks a handle for defragmentation. The vptr can no longer be used.
  *	@param user_handle
  */
-void
+extern void
 handle_unlock(Arena_Handle *user_handle);
 
 /** @brief Prints all memory usage and debug information of the entire arena.
  *	@param arena The arena to print debug information on.
  */
-void
+extern void
 arena_debug_print_memory_usage(const Arena *arena);
 
 #endif //ARENA_ALLOCATOR_ALLOC_LIB_H

@@ -7,7 +7,7 @@
 #include <string.h>
 
 
-Arena *
+extern Arena *
 arena_create()
 {
 	void *raw_pool = mempool_map_mem(FIRST_POOL_ALLOC + PD_RESERVED_F_SIZE);
@@ -42,7 +42,7 @@ mp_create_error:
 }
 
 
-void
+extern void
 arena_destroy(Arena *restrict arena)
 {
 	if (!arena) { return; }
@@ -71,14 +71,14 @@ arena_destroy(Arena *restrict arena)
 }
 
 
-static void
+extern void
 arena_defragment(Arena *arena, Defrag_Type defrag)
 {
 	// wip
 }
 
 
-Arena_Handle
+extern Arena_Handle
 arena_alloc(Arena *arena, const size_t size)
 {
 	Arena_Handle user_handle = {
@@ -110,7 +110,7 @@ arena_handle_err:
 }
 
 
-void
+extern void
 arena_reset(const Arena *restrict arena, const int reset_type)
 {
 	Mempool *restrict pool = arena->first_mempool;
@@ -141,11 +141,9 @@ arena_reset(const Arena *restrict arena, const int reset_type)
 }
 
 
-void
+extern void
 arena_free(Arena_Handle *user_handle)
 {
-	Mempool_Header *head = user_handle->header;
-
 	Arena *arena = return_base_arena(user_handle);
 
 	if (!mempool_handle_generation_checksum(arena, user_handle))
@@ -154,7 +152,7 @@ arena_free(Arena_Handle *user_handle)
 		return;
 	}
 
-	user_handle->header->flags = 1;
+	user_handle->header->flags = FREE;
 	user_handle->generation++;
 	user_handle->addr = NULL;
 
@@ -162,7 +160,7 @@ arena_free(Arena_Handle *user_handle)
 }
 
 
-int
+extern int
 arena_realloc(Arena_Handle *user_handle, size_t size)
 {
 	// it's probably best to memcpy here to allow reallocation, and track
@@ -180,7 +178,7 @@ arena_realloc(Arena_Handle *user_handle, size_t size)
 	if (!old_block || !new_block) { return 1; }
 	/* if there is a new head and nothing is null then it's all good to go for reallocation. */
 
-	memcpy(new_block, old_block, old_head->chunk_size - PD_HEAD_SIZE);
+	memcpy(new_block, old_block, old_head->block_size);
 	user_handle->generation++;
 	user_handle->header = new_head;
 	user_handle->addr = new_block;
@@ -191,7 +189,7 @@ arena_realloc(Arena_Handle *user_handle, size_t size)
 }
 
 
-void *
+extern void *
 handle_lock(Arena_Handle *restrict user_handle)
 {
 	const Arena *arena = return_base_arena(user_handle);
@@ -209,7 +207,7 @@ handle_lock(Arena_Handle *restrict user_handle)
 }
 
 
-void
+extern void
 handle_unlock(Arena_Handle *user_handle)
 {
 	Arena *arena = return_base_arena(user_handle);
@@ -226,7 +224,7 @@ handle_unlock(Arena_Handle *user_handle)
 }
 
 
-void
+extern void
 arena_debug_print_memory_usage(const Arena *arena)
 {
 	const Mempool *mempool = arena->first_mempool;

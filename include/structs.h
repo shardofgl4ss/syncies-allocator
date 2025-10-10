@@ -69,7 +69,7 @@ typedef struct Mempool {
  *	2 FROZEN
  */
 typedef struct Mempool_Header {
-	size_t chunk_size;						/**< Size of the header and block. */
+	size_t block_size;						/**< Size of the block in memory. */
 	u_int32_t pool_id;						/**< ID of the current pool. Used to detect cross-pool linkage. */
 	Header_Block_Flags flags;				/**< header-block flag. */
 	struct Mempool_Header *next_header;		/**< pointer to the next block in the chain. */
@@ -100,13 +100,10 @@ typedef struct Arena_Handle {
 
 /** @brief Row of block/header handles, or a table.
  *
- * @details Each handle table has a max handle count of:
- * 4096 / (sizeof(Arena_Handle) + sizeof(Mempool_Header) + MIN_POOL_BLOCK_ALLOC)
- * which equates to about 64 handles per row.
+ * @details Each handle table has a max handle count of 64, allocated in chunks.
  */
 typedef struct Handle_Table {
 	u_int32_t entries;				/**< how many handles there are in this table.	  */
-	//u_int32_t capacity;				/**< how many handles can fit in this table.  */
 	Arena_Handle handle_entries[];	/**< array of entries via FAM. index via entries. */
 } Handle_Table;
 
