@@ -73,15 +73,15 @@ typedef struct Mempool_Header {
 	u_int32_t pool_id;						/**< ID of the current pool. Used to detect cross-pool linkage. */
 	Header_Block_Flags flags;				/**< header-block flag. */
 	struct Mempool_Header *next_header;		/**< pointer to the next block in the chain. */
-	struct Mempool_Header *previous_header; /**< pointer to the previous block in the chain.*/
+	struct Mempool_Header *prev_header; /**< pointer to the previous block in the chain.*/
 } Mempool_Header;
 
 
 /**	@brief Arena structure for use by the user.
  *
  *	@details Each handle contains a flattened handle index for lookup. When you need to use
- *	the block address, the handle should be pinned through the allocator API (arena_pin(handle)),
- *	and then unpinned when done so defragmentation can occur.
+ *	the block address, the handle should be locked through the allocator API (*ptr = handle_lock(handle)),
+ *	and then unlocked when done so defragmentation can occur.
  *
  *	@warning Each handle is given to the user to their respective block, but it should not be
  *	dereferenced manually by doing handle->addr, instead use the dereference API for safety.

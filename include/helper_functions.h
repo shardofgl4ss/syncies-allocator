@@ -48,7 +48,7 @@ return_base_arena(const Arena_Handle *restrict user_handle)
 {
 	Mempool_Header *head = user_handle->header;
 
-	if (head->previous_header) { while (head->previous_header) { head = head->previous_header; } }
+	if (head->prev_header) { while (head->prev_header) { head = head->prev_header; } }
 	return (Arena *)((char *)head - (PD_POOL_SIZE + PD_ARENA_SIZE));
 }
 
