@@ -2,9 +2,9 @@
 // Created by SyncShard on 10/9/25.
 //
 
-#include "include/alloc_lib.h"
-
 #include <string.h>
+#include "include/alloc_lib.h"
+#include "internal_alloc.h"
 
 
 extern Arena *
@@ -15,8 +15,8 @@ arena_create()
 	if (raw_pool == MAP_FAILED) { goto mp_create_error; }
 
 	/*	Add the reserved_space directly to the mapping, then make the starting first_pool->mem		*
-	 *	after the reserved space, then just set mem_size to the FIRST_ARENA_POOL_SIZE.				*
-	 *	This spoofs a max memory of 4096 when its actually 4096 + reserved.							*
+	 *	after the reserved space, then just set mem_size to the FIRST_POOL_ALLOC.					*
+	 *	This spoofs a max memory of POOL_SIZE when its actually POOL_SIZE + reserved.				*
 	 *  Alignment is added to Mempool in case the user changes it to 16 or 32, it will be aligned.	*
 	 *  The alignment however adds some complexity later on.										*/
 
@@ -117,26 +117,23 @@ arena_reset(const Arena *restrict arena, const int reset_type)
 
 	switch (reset_type)
 	{
-		case 1:
-		mp_soft_reset:
-			pool->mem_offset = 0;
-			return;
-		case 0:
-			pool->mem_offset = 0;
-		case 2:
-			if (!pool->next_pool) { return; }
+	default:
+	case 1:
+		pool->mem_offset = 0;
+		return;
+	case 0:
+		pool->mem_offset = 0;
+	case 2:
+		if (!pool->next_pool) { return; }
 
-			while (pool->next_pool)
-			{
-				pool = pool->next_pool;
-				munmap(pool->prev_pool->mem, pool->prev_pool->mem_size + PD_POOL_SIZE);
-				pool->prev_pool->next_pool = nullptr;
-				pool->prev_pool = nullptr;
-			}
-			arena->first_mempool->mem = (char *)nullptr;
-			break;
-		default:
-			goto mp_soft_reset;
+		while (pool->next_pool)
+		{
+			pool = pool->next_pool;
+			munmap(pool->prev_pool->mem, pool->prev_pool->mem_size + PD_POOL_SIZE);
+			pool->prev_pool->next_pool = nullptr;
+			pool->prev_pool = nullptr;
+		};
+		break;
 	}
 }
 

@@ -109,7 +109,7 @@ typedef struct Handle_Table {
 
 
 typedef struct Arena {
-	size_t table_count;
+	u_int32_t table_count;
 	Handle_Table **handle_table;	/**< Pointer of arrays to tables, 2D matrix. */
 	Mempool *first_mempool;			/**< pointer to the very first memory pool.	 */
 	size_t total_mem_size;			/**< the total size of all pools together.	 */

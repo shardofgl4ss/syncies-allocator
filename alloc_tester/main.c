@@ -1,4 +1,5 @@
-#include "sync_alloc/include/sync_alloc.h"
+//#include "../sync_alloc/include/sync_alloc.h"
+#include <stdio.h>
 
 int
 main(void)

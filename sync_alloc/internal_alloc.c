@@ -13,8 +13,7 @@ mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict 
 
 	hdl.header = head;
 	hdl.addr = (void *)((char *)head + PD_HEAD_SIZE);
-	hdl.handle_matrix_index =
-			(u_int32_t)arena->table_count * TABLE_MAX_COL + arena->handle_table[arena->table_count]->entries;
+	hdl.handle_matrix_index = arena->table_count * TABLE_MAX_COL + arena->handle_table[arena->table_count]->entries;
 	hdl.generation = 1;
 
 	if (arena->handle_table[arena->table_count]->entries + 1 > TABLE_MAX_COL ||
@@ -47,9 +46,9 @@ Mempool_Header *
 mempool_create_header(Mempool *restrict pool, const size_t size, const size_t offset, const u_int32_t pool_id)
 {
 	if ((pool->mem_size - pool->mem_offset) < (mempool_add_padding(size) + PD_HEAD_SIZE)) { goto mp_head_create_error; }
-	Mempool_Header *head = nullptr;
 
-	head = (Mempool_Header *)((char *)pool->mem + offset);
+	Mempool_Header *head = (Mempool_Header *)((char *)pool->mem + offset);
+
 	head->flags = ALLOCATED;
 	head->block_size = size;
 	head->next_header = nullptr;
