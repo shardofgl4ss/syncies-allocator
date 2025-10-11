@@ -6,9 +6,9 @@
 #define ARENA_ALLOCATOR_ALLOC_LIB_H
 
 
-#include "helper_functions.h"
-#include "internal_alloc.h"
-#include "structs.h"
+#include "../../AllocCore/include/helper_functions.h"
+#include "../../AllocCore/include/internal_alloc.h"
+#include "../../AllocCore/include/structs.h"
 
 /**	@brief Creates a dynamic, automatically resizing arena with base size of 16KiB.
  *

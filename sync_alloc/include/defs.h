@@ -26,7 +26,7 @@
 
 #define TABLE_MAX_COL	64
 
-#include "structs.h"
+#include "../../AllocCore/include/structs.h"
 
 /* It is very important to have everything aligned in memory, so we should go out of our way to make it that way. *
  * PD here stands for PADDED, F for FIRST as the first arena's pool is a special case.							  */

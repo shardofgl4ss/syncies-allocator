@@ -2,7 +2,7 @@
 // Created by SyncShard on 10/9/25.
 //
 
-#include "../include/alloc_lib.h"
+#include "include/alloc_lib.h"
 
 #include <string.h>
 
@@ -133,7 +133,7 @@ arena_reset(const Arena *restrict arena, const int reset_type)
 				pool->prev_pool->next_pool = nullptr;
 				pool->prev_pool = nullptr;
 			}
-			arena->first_mempool->mem = (char *)0;
+			arena->first_mempool->mem = (char *)nullptr;
 			break;
 		default:
 			goto mp_soft_reset;

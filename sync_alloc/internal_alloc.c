@@ -2,7 +2,7 @@
 // Created by SyncShard on 10/9/25.
 //
 
-#include "../include/internal_alloc.h"
+#include "include/internal_alloc.h"
 
 
 static Arena_Handle
@@ -13,12 +13,15 @@ mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict 
 
 	hdl.header = head;
 	hdl.addr = (void *)((char *)head + PD_HEAD_SIZE);
-	hdl.handle_matrix_index = (u_int32_t)arena->table_count * TABLE_MAX_COL + arena->handle_table[arena->table_count]->
-	                          entries;
+	hdl.handle_matrix_index =
+			(u_int32_t)arena->table_count * TABLE_MAX_COL + arena->handle_table[arena->table_count]->entries;
 	hdl.generation = 1;
 
-	if (arena->handle_table[arena->table_count]->entries + 1 > TABLE_MAX_COL || arena->handle_table[arena->table_count]
-	    ->entries == TABLE_MAX_COL) { arena->handle_table[++arena->table_count] = mempool_new_handle_table(arena); }
+	if (arena->handle_table[arena->table_count]->entries + 1 > TABLE_MAX_COL ||
+	    arena->handle_table[arena->table_count]->entries == TABLE_MAX_COL)
+	{
+		arena->handle_table[++arena->table_count] = mempool_new_handle_table(arena);
+	}
 
 	Handle_Table *current_table = arena->handle_table[arena->table_count];
 	current_table->handle_entries[++current_table->entries] = hdl;
@@ -121,14 +124,10 @@ mempool_find_block(Arena *arena, const size_t requested_size)
 				new_head->block_size = requested_size;
 				new_head->flags = ALLOCATED;
 
-				if (head->next_header != nullptr)
-				{
-					new_head->next_header = head->next_header;
-				}
+				if (head->next_header != nullptr) { new_head->next_header = head->next_header; }
 				// do this later
 				while (head->prev_header != nullptr && head->prev_header->flags == FREE)
 				{
-
 				}
 
 				new_head->prev_header = head;

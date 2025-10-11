@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <sys/mman.h>
 
-#include "defs.h"
+#include "../../sync_alloc/include/defs.h"
 #include "structs.h"
 
 inline static void *
