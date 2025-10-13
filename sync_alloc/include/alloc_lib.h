@@ -25,7 +25,7 @@ arena_create();
 /// @brief Destroys a whole arena, deallocating it and setting all values to NULL or 0
 /// @param arena The arena to destroy
 extern void
-arena_destroy(Arena *restrict arena);
+arena_destroy(const Arena *restrict arena);
 
 /**	@brief Clears up defragmentation of the memory pool where there is any.
  *
@@ -34,11 +34,11 @@ arena_destroy(Arena *restrict arena);
  *	to the next non-free, then updates head->chunk_size of the first free.
  *
  *	@param arena Arena to defragment.
- *	@param defrag_type 0 = light defragment. Quickly look through the headers and link empty ones.
- *	1 = full defragment with relocation. (it will probably be a while before this is implemented)
+ *	@param l_defrag The light defrag option. If true, only a light defragmentation
+ *	will occur. If false, heavy defragmentation will occur.
  */
 extern void
-arena_defragment(Arena *arena, Defrag_Type defrag);
+arena_defragment(const Arena *arena, bool l_defrag);
 
 /** @brief Allocates a new block of memory.
  *

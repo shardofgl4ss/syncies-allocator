@@ -20,7 +20,7 @@ inline static size_t
 mempool_add_padding(const size_t input) { return (input + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1); }
 
 inline static void
-mp_destroy(void *restrict mem, const size_t bytes)
+mempool_destroy(void *restrict mem, const size_t bytes)
 {
 	static int index = 0;
 	const int x = munmap(mem, bytes);

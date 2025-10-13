@@ -24,12 +24,6 @@ typedef enum Header_Block_Flags {
 } Header_Block_Flags;
 
 
-typedef enum Defrag_Type {
-	LIGHT_DEFRAG = 0,
-	HEAVY_DEFRAG = 1,
-} Defrag_Type;
-
-
 /** @brief Memory pool data structure.
  *
  *	@details
@@ -73,7 +67,8 @@ typedef struct Mempool_Header {
 	u_int32_t pool_id;						/**< ID of the current pool. Used to detect cross-pool linkage. */
 	Header_Block_Flags flags;				/**< header-block flag. */
 	struct Mempool_Header *next_header;		/**< pointer to the next block in the chain. */
-	struct Mempool_Header *prev_header; /**< pointer to the previous block in the chain.*/
+	struct Mempool_Header *prev_header;		/**< pointer to the previous block in the chain.*/
+	struct Arena_Handle *handle;			/**< pointer to the header's handle.*/
 } Mempool_Header;
 
 

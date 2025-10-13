@@ -2,17 +2,20 @@
 // Created by SyncShard on 10/9/25.
 //
 
+#include "alloc_lib.h"
 #include <string.h>
-#include "include/alloc_lib.h"
 #include "internal_alloc.h"
 
 
 extern Arena *
 arena_create()
 {
-	void *raw_pool = mempool_map_mem(FIRST_POOL_ALLOC + PD_RESERVED_F_SIZE);
+	void *raw_pool = mempool_map_mem(
+		(FIRST_POOL_ALLOC + PD_RESERVED_F_SIZE) + (ALIGNMENT - 1) & (size_t)~(ALIGNMENT - 1)
+	);
 
-	if (raw_pool == MAP_FAILED) { goto mp_create_error; }
+	if (raw_pool == MAP_FAILED)
+		goto mp_create_error;
 
 	/*	Add the reserved_space directly to the mapping, then make the starting first_pool->mem		*
 	 *	after the reserved space, then just set mem_size to the FIRST_POOL_ALLOC.					*
@@ -21,9 +24,9 @@ arena_create()
 	 *  The alignment however adds some complexity later on.										*/
 
 	Arena *arena = raw_pool;
-	Mempool *first_pool = (Mempool *)((char *)raw_pool + sizeof(Arena));
+	auto *first_pool = (Mempool *)((char *)raw_pool + PD_ARENA_SIZE);
 
-	first_pool->mem = (char *)raw_pool + PD_RESERVED_F_SIZE;
+	first_pool->mem = (void *)((char *)raw_pool + PD_POOL_SIZE);
 	first_pool->mem_offset = 0;
 	first_pool->mem_size = FIRST_POOL_ALLOC;
 	first_pool->next_pool = nullptr;
@@ -43,28 +46,29 @@ mp_create_error:
 
 
 extern void
-arena_destroy(Arena *restrict arena)
+arena_destroy(const Arena *const restrict arena)
 {
-	if (!arena) { return; }
-	const Mempool *mp = arena->first_mempool;
+	if (arena == nullptr || arena->first_mempool == nullptr)
+		return;
+	const Mempool *pool = arena->first_mempool;
 
-	if (!mp->next_pool)
+	if (pool->next_pool == nullptr)
 	{
-		mp_destroy(mp->mem, mp->mem_size + PD_RESERVED_F_SIZE);
+		mempool_destroy(pool->mem, pool->mem_size + PD_RESERVED_F_SIZE);
 		printf("arena destroyed\n");
 		fflush(stdout);
 	}
 
-	mp = mp->next_pool;
-	mp_destroy(mp->prev_pool->mem, mp->prev_pool->mem_size + PD_RESERVED_F_SIZE);
+	pool = pool->next_pool;
+	mempool_destroy(pool->prev_pool->mem, pool->prev_pool->mem_size + PD_RESERVED_F_SIZE);
 
-	while (mp->next_pool)
+	while (pool->next_pool != nullptr)
 	{
-		mp = mp->next_pool;
-		mp_destroy(mp->prev_pool->mem, mp->prev_pool->mem_size + PD_POOL_SIZE);
+		pool = pool->next_pool;
+		mempool_destroy(pool->prev_pool->mem, pool->prev_pool->mem_size + PD_POOL_SIZE);
 	}
 
-	mp_destroy(mp->mem, mp->mem_size + PD_POOL_SIZE);
+	mempool_destroy(pool->mem, pool->mem_size + PD_POOL_SIZE);
 
 	printf("arena destroyed\n");
 	fflush(stdout);
@@ -72,9 +76,74 @@ arena_destroy(Arena *restrict arena)
 
 
 extern void
-arena_defragment(Arena *arena, Defrag_Type defrag)
+arena_defragment(const Arena *const restrict arena, const bool l_defrag)
 {
-	// wip
+	const Mempool *restrict pool = arena ? arena->first_mempool : nullptr;
+	const Mempool_Header *restrict head = pool->mem_offset != 0 ? (Mempool_Header *)(char *)pool->mem : nullptr;
+
+	if (arena == nullptr
+	    || arena->first_mempool == nullptr
+	    || arena->first_mempool->mem_size == 0
+	    || (
+		    arena->first_mempool->mem_offset == 0
+		    && arena->first_mempool->next_pool == nullptr
+	    )
+	)
+		return;
+	if (!l_defrag)
+		goto heavy_defrag;
+
+light_defrag:
+	u_int32_t pool_idx = 0;
+
+	while (pool != nullptr)
+	{
+		if (pool->mem_offset == 0)
+			goto empty_pool;
+
+		//const auto *head = (Mempool_Header *)((char *)pool->mem);
+		Mempool_Header *prev_head = head->prev_header;
+		Mempool_Header *next_head = head->next_header;
+
+		while (head != nullptr && head->flags == FREE)
+		{
+			if (head->pool_id != pool_idx)
+			{
+				fprintf(
+					stderr,
+					"error: pool IDs do not match! current head: %d, current pool: %d, skipping...\n",
+					head->pool_id,
+					pool_idx
+				);
+				//head->pool_id = pool_idx;
+				continue;
+			}
+
+			if (prev_head != nullptr
+			    && prev_head->flags == FREE
+			    && prev_head->pool_id == head->pool_id
+			)
+			{
+				prev_head->block_size += head->block_size + PD_HEAD_SIZE;
+				prev_head->next_header = next_head;
+				next_head->prev_header = prev_head;
+			}
+
+			head = head->next_header;
+		}
+		pool = pool->next_pool, pool_idx++;
+		continue;
+
+	empty_pool:
+		if (pool->prev_pool == nullptr)
+			continue;
+		mempool_destroy(pool->mem, pool->mem_size + PD_POOL_SIZE);
+	}
+	return;
+
+heavy_defrag:
+	// wip, so just make it go to light defrag for now
+	goto light_defrag;
 }
 
 
@@ -117,23 +186,23 @@ arena_reset(const Arena *restrict arena, const int reset_type)
 
 	switch (reset_type)
 	{
-	default:
-	case 1:
-		pool->mem_offset = 0;
-		return;
-	case 0:
-		pool->mem_offset = 0;
-	case 2:
-		if (!pool->next_pool) { return; }
+		default:
+		case 1:
+			pool->mem_offset = 0;
+			return;
+		case 0:
+			pool->mem_offset = 0;
+		case 2:
+			if (!pool->next_pool) { return; }
 
-		while (pool->next_pool)
-		{
-			pool = pool->next_pool;
-			munmap(pool->prev_pool->mem, pool->prev_pool->mem_size + PD_POOL_SIZE);
-			pool->prev_pool->next_pool = nullptr;
-			pool->prev_pool = nullptr;
-		};
-		break;
+			while (pool->next_pool)
+			{
+				pool = pool->next_pool;
+				munmap(pool->prev_pool->mem, pool->prev_pool->mem_size + PD_POOL_SIZE);
+				pool->prev_pool->next_pool = nullptr;
+				pool->prev_pool = nullptr;
+			};
+			break;
 	}
 }
 
@@ -207,7 +276,7 @@ handle_lock(Arena_Handle *restrict user_handle)
 extern void
 handle_unlock(Arena_Handle *user_handle)
 {
-	Arena *arena = return_base_arena(user_handle);
+	const Arena *arena = return_base_arena(user_handle);
 	mempool_update_table_generation(user_handle);
 
 	if (!mempool_handle_generation_checksum(arena, user_handle))
@@ -217,7 +286,7 @@ handle_unlock(Arena_Handle *user_handle)
 	}
 	user_handle->header->flags = ALLOCATED;
 	user_handle->addr = nullptr;
-	arena_defragment(arena, LIGHT_DEFRAG);
+	arena_defragment(arena, true);
 }
 
 
