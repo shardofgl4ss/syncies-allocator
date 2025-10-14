@@ -8,7 +8,7 @@
 #include "helper_functions.h"
 
 static Arena_Handle
-mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict head);
+mempool_create_handle_and_entry(Arena *restrict arena, Pool_Header *restrict head);
 
 /** @brief Creates a new handle table. Does not increment table_count by itself, do that before calling.
  *
@@ -31,8 +31,8 @@ mempool_new_handle_table(Arena *restrict arena);
  *	@note Does not link headers. Does not update memory offset of the pool.
  *	@note The header is set as ALLOCATED by default.
  */
-Mempool_Header *
-mempool_create_header(Mempool *restrict pool, size_t size, size_t offset, u_int32_t pool_id);
+Pool_Header *
+mempool_create_header(Memory_Pool *restrict pool, size_t size, size_t offset, u_int32_t pool_id);
 
 /** @brief Creates a new memory pool.
  *	@param arena Pointer to the arena to create a new pool in.
@@ -42,7 +42,7 @@ mempool_create_header(Mempool *restrict pool, size_t size, size_t offset, u_int3
  *	@note Handles linking pools, and updating the total_mem_size in the arena struct.
  *	@warning Returns NULL if allocating a new pool fails, or if provided size is zero.
  */
-static Mempool *
+static Memory_Pool *
 mempool_create_internal_pool(Arena *restrict arena, size_t size);
 
 /** @brief Analyzes the header-block chain, making a new header if there is no free one to use.
@@ -53,7 +53,7 @@ mempool_create_internal_pool(Arena *restrict arena, size_t size);
  *
  *	@warning Will return NULL if a new pool's header could not be made, which should be impossible.
  */
-static Mempool_Header *
+static Pool_Header *
 mempool_find_block(Arena *arena, size_t requested_size);
 
 #endif //ARENA_ALLOCATOR_INTERNAL_ALLOC_H

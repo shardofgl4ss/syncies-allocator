@@ -37,8 +37,8 @@ static_assert(
 /* It is very important to have everything aligned in memory, so we should go out of our way to make it that way. *
  * PD here stands for PADDED, F for FIRST as the first arena's pool is a special case.							  */
 constexpr size_t PD_ARENA_SIZE = (sizeof(Arena) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
-constexpr size_t PD_POOL_SIZE = (sizeof(Mempool) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
-constexpr size_t PD_HEAD_SIZE = (sizeof(Mempool_Header) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
+constexpr size_t PD_POOL_SIZE = (sizeof(Memory_Pool) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
+constexpr size_t PD_HEAD_SIZE = (sizeof(Pool_Header) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
 constexpr size_t PD_HANDLE_SIZE = (sizeof(Arena_Handle) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
 constexpr size_t PD_TABLE_SIZE = (sizeof(Handle_Table) + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1);
 constexpr size_t PD_RESERVED_F_SIZE = (PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1) & (size_t)~(ALIGNMENT - 1);

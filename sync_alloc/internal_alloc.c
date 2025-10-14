@@ -8,7 +8,7 @@
 
 
 static Arena_Handle
-mempool_create_handle_and_entry(Arena *restrict arena, Mempool_Header *restrict head)
+mempool_create_handle_and_entry(Arena *restrict arena, Pool_Header *restrict head)
 {
 	Arena_Handle hdl = {};
 	if (head == nullptr || arena == nullptr || arena->first_mempool == nullptr) { return hdl; }
@@ -45,12 +45,12 @@ mempool_new_handle_table(Arena *restrict arena)
 }
 
 
-Mempool_Header *
-mempool_create_header(Mempool *restrict pool, const size_t size, const size_t offset, const u_int32_t pool_id)
+Pool_Header *
+mempool_create_header(Memory_Pool *restrict pool, const size_t size, const size_t offset, const u_int32_t pool_id)
 {
-	if ((pool->mem_size - pool->mem_offset) < (mempool_add_padding(size) + PD_HEAD_SIZE)) { goto mp_head_create_error; }
+	if ((pool->pool_size - pool->pool_offset) < (mempool_add_padding(size) + PD_HEAD_SIZE)) { goto mp_head_create_error; }
 
-	Mempool_Header *head = (Mempool_Header *)((char *)pool->mem + offset);
+	Pool_Header *head = (Pool_Header *)((char *)pool->mem + offset);
 
 	head->flags = ALLOCATED;
 	head->block_size = size;
@@ -67,13 +67,13 @@ mp_head_create_error:
 }
 
 
-static Mempool *
+static Memory_Pool *
 mempool_create_internal_pool(Arena *restrict arena, const size_t size)
 {
 	if (arena == nullptr)
 		goto mp_internal_error;
 
-	Mempool *pool = arena->first_mempool ? arena->first_mempool : nullptr;
+	Memory_Pool *pool = arena->first_mempool ? arena->first_mempool : nullptr;
 
 	if (pool == nullptr)
 		goto mp_internal_error;
@@ -85,17 +85,17 @@ mempool_create_internal_pool(Arena *restrict arena, const size_t size)
 	if (raw == nullptr)
 		goto mp_internal_error;
 
-	Mempool *new_pool = raw;
+	Memory_Pool *new_pool = raw;
 	new_pool->mem = (void *)((char *)raw + PD_POOL_SIZE);
 
 	pool->next_pool = new_pool;
 	new_pool->prev_pool = pool;
 
-	new_pool->mem_size = size;
-	new_pool->mem_offset = 0;
+	new_pool->pool_size = size;
+	new_pool->pool_offset = 0;
 	new_pool->next_pool = nullptr;
 
-	arena->total_mem_size += new_pool->mem_size;
+	arena->total_mem_size += new_pool->pool_size;
 
 	return new_pool;
 
@@ -106,18 +106,18 @@ mp_internal_error:
 }
 
 
-static Mempool_Header *
+static Pool_Header *
 mempool_find_block(Arena *arena, const size_t requested_size)
 {
-	if (!arena || requested_size == 0 || arena->first_mempool->mem_size == 0) { return nullptr; }
-	Mempool *pool = arena->first_mempool;
+	if (!arena || requested_size == 0 || arena->first_mempool->pool_size == 0) { return nullptr; }
+	Memory_Pool *pool = arena->first_mempool;
 	u_int32_t pool_idx = 0;
 
 	// there is no first header if the offset is zero.
-	if (pool->mem_offset == 0) { return mempool_create_header(pool, requested_size, pool->mem_offset, pool_idx); }
+	if (pool->pool_offset == 0) { return mempool_create_header(pool, requested_size, pool->pool_offset, pool_idx); }
 
 	const size_t new_chunk_size = requested_size + PD_HEAD_SIZE;
-	auto *head = (Mempool_Header *)((char *)pool->mem);
+	auto *head = (Pool_Header *)((char *)pool->mem);
 
 	while (head->next_header != nullptr)
 	{
@@ -129,7 +129,7 @@ mempool_find_block(Arena *arena, const size_t requested_size)
 				// we cant use the create header function because we cant
 				// figure out the offset from this specific header.
 				const size_t tombstoned_blocks = head->block_size - new_chunk_size;
-				auto *new_head = (Mempool_Header *)((char *)head + tombstoned_blocks);
+				auto *new_head = (Pool_Header *)((char *)head + tombstoned_blocks);
 				head->block_size -= tombstoned_blocks;
 				new_head->block_size = requested_size;
 				new_head->flags = ALLOCATED;

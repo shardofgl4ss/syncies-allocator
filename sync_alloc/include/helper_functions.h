@@ -40,12 +40,12 @@ destroy_fail:
 /// @param head Header ptr to the header to do ptr arithmetic,
 /// to calculate the location of the block.
 inline static void *
-return_vptr(Mempool_Header *head) { return (char *)head + PD_HEAD_SIZE; }
+return_vptr(Pool_Header *head) { return (char *)head + PD_HEAD_SIZE; }
 
 inline static Arena *
 return_base_arena(const Arena_Handle *restrict user_handle)
 {
-	Mempool_Header *head = user_handle->header;
+	Pool_Header *head = user_handle->header;
 
 	if (head->prev_header) { while (head->prev_header) { head = head->prev_header; } }
 	return (Arena *)((char *)head - (PD_POOL_SIZE + PD_ARENA_SIZE));

@@ -24,11 +24,11 @@ arena_create()
 	 *  The alignment however adds some complexity later on.										*/
 
 	Arena *arena = raw_pool;
-	auto *first_pool = (Mempool *)((char *)raw_pool + PD_ARENA_SIZE);
+	auto *first_pool = (Memory_Pool *)((char *)raw_pool + PD_ARENA_SIZE);
 
 	first_pool->mem = (void *)((char *)raw_pool + PD_POOL_SIZE);
-	first_pool->mem_offset = 0;
-	first_pool->mem_size = FIRST_POOL_ALLOC;
+	first_pool->pool_offset = 0;
+	first_pool->pool_size = FIRST_POOL_ALLOC;
 	first_pool->next_pool = nullptr;
 	first_pool->prev_pool = nullptr;
 
@@ -50,25 +50,25 @@ arena_destroy(const Arena *const restrict arena)
 {
 	if (arena == nullptr || arena->first_mempool == nullptr)
 		return;
-	const Mempool *pool = arena->first_mempool;
+	const Memory_Pool *pool = arena->first_mempool;
 
 	if (pool->next_pool == nullptr)
 	{
-		mempool_destroy(pool->mem, pool->mem_size + PD_RESERVED_F_SIZE);
+		mempool_destroy(pool->mem, pool->pool_size + PD_RESERVED_F_SIZE);
 		printf("arena destroyed\n");
 		fflush(stdout);
 	}
 
 	pool = pool->next_pool;
-	mempool_destroy(pool->prev_pool->mem, pool->prev_pool->mem_size + PD_RESERVED_F_SIZE);
+	mempool_destroy(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_RESERVED_F_SIZE);
 
 	while (pool->next_pool != nullptr)
 	{
 		pool = pool->next_pool;
-		mempool_destroy(pool->prev_pool->mem, pool->prev_pool->mem_size + PD_POOL_SIZE);
+		mempool_destroy(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_POOL_SIZE);
 	}
 
-	mempool_destroy(pool->mem, pool->mem_size + PD_POOL_SIZE);
+	mempool_destroy(pool->mem, pool->pool_size + PD_POOL_SIZE);
 
 	printf("arena destroyed\n");
 	fflush(stdout);
@@ -78,18 +78,18 @@ arena_destroy(const Arena *const restrict arena)
 extern void
 arena_defragment(const Arena *const restrict arena, const bool l_defrag)
 {
-	const Mempool *restrict pool = arena ? arena->first_mempool : nullptr;
-	const Mempool_Header *restrict head = pool->mem_offset != 0 ? (Mempool_Header *)(char *)pool->mem : nullptr;
+	const Memory_Pool *restrict pool = (arena) ? arena->first_mempool : nullptr;
+	const Pool_Header *restrict head = (pool->pool_offset != 0) ? pool->mem : nullptr;
 
-	if (arena == nullptr
-	    || arena->first_mempool == nullptr
-	    || arena->first_mempool->mem_size == 0
+	if (pool == nullptr
+	    || head == nullptr
+	    || pool->pool_size == 0
 	    || (
-		    arena->first_mempool->mem_offset == 0
-		    && arena->first_mempool->next_pool == nullptr
+		    pool->pool_offset == 0
+		    && pool->next_pool == nullptr
 	    )
-	)
-		return;
+	) { return; }
+
 	if (!l_defrag)
 		goto heavy_defrag;
 
@@ -98,12 +98,12 @@ light_defrag:
 
 	while (pool != nullptr)
 	{
-		if (pool->mem_offset == 0)
+		if (pool->pool_offset == 0)
 			goto empty_pool;
 
 		//const auto *head = (Mempool_Header *)((char *)pool->mem);
-		Mempool_Header *prev_head = head->prev_header;
-		Mempool_Header *next_head = head->next_header;
+		Pool_Header *prev_head = head->prev_header;
+		Pool_Header *next_head = head->next_header;
 
 		while (head != nullptr && head->flags == FREE)
 		{
@@ -137,7 +137,7 @@ light_defrag:
 	empty_pool:
 		if (pool->prev_pool == nullptr)
 			continue;
-		mempool_destroy(pool->mem, pool->mem_size + PD_POOL_SIZE);
+		mempool_destroy(pool->mem, pool->pool_size + PD_POOL_SIZE);
 	}
 	return;
 
@@ -157,7 +157,7 @@ arena_alloc(Arena *arena, const size_t size)
 		.header = nullptr,
 	};
 
-	if (arena == nullptr || size == 0 || arena->first_mempool == nullptr) { goto arena_handle_err; }
+	if (arena == nullptr || size == 0 || arena->first_mempool == nullptr) { return user_handle; }
 
 	const size_t input_bytes = mempool_add_padding(size);
 	if (input_bytes != size)
@@ -165,16 +165,12 @@ arena_alloc(Arena *arena, const size_t size)
 		printf("debug: padding has been added. input: %lu, padded: %lu\n", size, input_bytes);
 		fflush(stdout);
 	}
-	Mempool_Header *head = nullptr;
+	Pool_Header *head = nullptr;
 
 	head = mempool_find_block(arena, input_bytes);
-	if (!head) { goto arena_handle_err; }
+	if (head == nullptr)
+		perror("invalid handle error");
 	user_handle = mempool_create_handle_and_entry(arena, head);
-	if (user_handle.addr != nullptr) { return user_handle; }
-
-arena_handle_err:
-	perror("error: invalid handle was given! things will break!\n");
-	fflush(stdout);
 	return user_handle;
 }
 
@@ -182,23 +178,23 @@ arena_handle_err:
 extern void
 arena_reset(const Arena *restrict arena, const int reset_type)
 {
-	Mempool *restrict pool = arena->first_mempool;
+	Memory_Pool *restrict pool = arena->first_mempool;
 
 	switch (reset_type)
 	{
 		default:
 		case 1:
-			pool->mem_offset = 0;
+			pool->pool_offset = 0;
 			return;
 		case 0:
-			pool->mem_offset = 0;
+			pool->pool_offset = 0;
 		case 2:
 			if (!pool->next_pool) { return; }
 
 			while (pool->next_pool)
 			{
 				pool = pool->next_pool;
-				munmap(pool->prev_pool->mem, pool->prev_pool->mem_size + PD_POOL_SIZE);
+				munmap(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_POOL_SIZE);
 				pool->prev_pool->next_pool = nullptr;
 				pool->prev_pool = nullptr;
 			};
@@ -234,9 +230,9 @@ arena_realloc(Arena_Handle *user_handle, size_t size)
 	if (user_handle->header->flags == FROZEN || user_handle == nullptr) { return 1; }
 	size = mempool_add_padding(size);
 
-	Mempool_Header *old_head = user_handle->header;
+	Pool_Header *old_head = user_handle->header;
 	Arena *arena = return_base_arena(user_handle);
-	Mempool_Header *new_head = mempool_find_block(arena, size);
+	Pool_Header *new_head = mempool_find_block(arena, size);
 	if (!new_head) { return 1; }
 
 	void *old_block = (char *)old_head + PD_HEAD_SIZE;
@@ -293,15 +289,15 @@ handle_unlock(Arena_Handle *user_handle)
 extern void
 arena_debug_print_memory_usage(const Arena *arena)
 {
-	const Mempool *mempool = arena->first_mempool;
-	const Mempool_Header *header = (Mempool_Header *)arena->first_mempool->mem;
+	const Memory_Pool *mempool = arena->first_mempool;
+	const Pool_Header *header = (Pool_Header *)arena->first_mempool->mem;
 
 	u_int32_t pool_count = 0, head_count = 0;
-	size_t total_pool_mem = mempool->mem_size;
+	size_t total_pool_mem = mempool->pool_size;
 
 	while (mempool)
 	{
-		total_pool_mem += mempool->mem_size;
+		total_pool_mem += mempool->pool_size;
 		mempool = mempool->next_pool;
 		pool_count++;
 	}
