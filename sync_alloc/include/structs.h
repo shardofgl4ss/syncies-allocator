@@ -49,11 +49,18 @@ typedef struct Memory_Pool {
  *	@details
  *	The handle index is copied over from the user handle.
  *	Valid flags are: 0 == FREE, 1 == ALLOCATED, 2 == FROZEN.
+ *	Flags are stored in the 3 LSB's of <size>. To get:
+ *	@details
+ *	flags: @code flag = header->size & 0x7; @endcode
+ *	@details
+ *	size:  @code size = header->size >> 3; @endcode
+ *	@details
+ *	set flag: @code size = (size & 0x7) | ((u8)FLAG_ENUM & 0x7); @endcode
  */
 typedef struct Pool_Header {
-	u32 size;				/**< Size of the block in front of the header.	*/
+	u32 handle_idx;			/**< Index to the header's handle.				*/
+	u16 size;				/**< Size of the block in front of the header.	*/
 	u16 prev_block_size;	/**< Size of the previous header block.			*/
-	u16 handle_idx;		/**< Index to the header's handle.				*/
 	//u8 flag;				/**< Flag of the block. 0 FREE, 1 ALLOCATED, 2 FROZEN. */
 } Pool_Header;
 
@@ -64,7 +71,7 @@ typedef struct Pool_Free_Header {
 
 typedef struct Pool_Free_Header_Data {
 	u16 size;
-	u16 handle_idx;
+	u32 handle_idx;
 } Pool_Free_Header_Data;
 
 /**	@brief Extended pool header, for use in the huge page pools only.
@@ -110,13 +117,16 @@ typedef struct Arena_Handle {
  *	@details Each handle table has a max handle count of 64, allocated in chunks.
  *	Each table is in a linked list to allow easy infinite table allocation.
  *	The maximum capacity of a handle table is defined as TABLE_MAX_COL.
+ *	@details
  *	To get the full size of each table, arithmetic must be done:
  *	size_t total = (TABLE_MAX_COL * PD_HANDLE_SIZE) + PD_TABLE_SIZE;
+ *	@details
+ *	For the bitmap, 0 == FREE/STALE, 1 == ALLOCATED.
  */
 typedef struct Handle_Table {
 	struct Handle_Table *next_table;
-	u64 entries_bitmap;		/**< Bitmap of used and free handles.				*/
-	u16 table_id;				/**< The index of the current table.				*/
+	bit64 entries_bitmap;			/**< Bitmap of used and free handles.				*/
+	u32 table_id;					/**< The index of the current table.				*/
 	Arena_Handle handle_entries[];	/**< array of entries via FAM. index via entries bit.	*/
 } Handle_Table;
 

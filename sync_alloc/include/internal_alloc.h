@@ -13,10 +13,11 @@ mempool_create_handle_and_entry(Arena *restrict arena, Pool_Header *restrict hea
 /** @brief Creates a new handle table. Does not increment table_count by itself, do that before calling.
  *
  * @param arena The arena to create a new table on.
+ * @param table The table to map.
  * @return a valid handle table if there is enough system memory.
  */
 static Handle_Table *
-mempool_new_handle_table(Arena *restrict arena);
+mempool_new_handle_table(Arena *restrict arena, Handle_Table *restrict table);
 
 /**	@brief Creates a new block header
  *
@@ -32,7 +33,7 @@ mempool_new_handle_table(Arena *restrict arena);
  *	@note The header is set as ALLOCATED by default.
  */
 Pool_Header *
-mempool_create_header(Memory_Pool *restrict pool, size_t size, size_t offset, u_int32_t pool_id);
+mempool_create_header(const Memory_Pool *restrict pool, u16 size, usize offset);
 
 /** @brief Creates a new memory pool.
  *	@param arena Pointer to the arena to create a new pool in.

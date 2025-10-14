@@ -11,7 +11,7 @@ extern Arena *
 arena_create()
 {
 	void *raw_pool = mempool_map_mem(
-		(FIRST_POOL_ALLOC + PD_RESERVED_F_SIZE) + (ALIGNMENT - 1) & (size_t)~(ALIGNMENT - 1)
+		(MAX_FIRST_POOL_SIZE + PD_RESERVED_F_SIZE) + (ALIGNMENT - 1) & (usize)~(ALIGNMENT - 1)
 	);
 
 	if (raw_pool == MAP_FAILED)
@@ -28,13 +28,13 @@ arena_create()
 
 	first_pool->mem = (void *)((char *)raw_pool + PD_POOL_SIZE);
 	first_pool->pool_offset = 0;
-	first_pool->pool_size = FIRST_POOL_ALLOC;
+	first_pool->pool_size = MAX_FIRST_POOL_SIZE;
 	first_pool->next_pool = nullptr;
 	first_pool->prev_pool = nullptr;
 
-	arena->total_mem_size = FIRST_POOL_ALLOC;
+	arena->total_mem_size = MAX_FIRST_POOL_SIZE;
 	arena->table_count = 0;
-	arena->first_hdl_tbl[arena->table_count++] = mempool_new_handle_table(arena);
+	arena->first_hdl_tbl = mempool_new_handle_table(arena);
 
 	return arena;
 
