@@ -34,7 +34,7 @@ arena_create()
 
 	arena->total_mem_size = FIRST_POOL_ALLOC;
 	arena->table_count = 0;
-	arena->handle_table[arena->table_count++] = mempool_new_handle_table(arena);
+	arena->first_hdl_tbl[arena->table_count++] = mempool_new_handle_table(arena);
 
 	return arena;
 
@@ -313,7 +313,7 @@ arena_debug_print_memory_usage(const Arena *arena)
 	const size_t header_bytes = head_count * PD_HEAD_SIZE;
 	size_t handle_count = 0;
 
-	for (size_t i = 0; i < arena->table_count; i++) { handle_count += arena->handle_table[i]->entries; }
+	for (size_t i = 0; i < arena->table_count; i++) { handle_count += arena->first_hdl_tbl[i]->entries_bitmap; }
 
 	const size_t handle_bytes = handle_count * PD_HANDLE_SIZE;
 	const size_t reserved_mem = handle_bytes + header_bytes + (pool_count * PD_POOL_SIZE) + PD_ARENA_SIZE;

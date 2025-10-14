@@ -3,7 +3,6 @@
 //
 
 #include "include/internal_alloc.h"
-
 #include "alloc_lib.h"
 
 
@@ -13,21 +12,23 @@ mempool_create_handle_and_entry(Arena *restrict arena, Pool_Header *restrict hea
 	Arena_Handle hdl = {};
 	if (head == nullptr || arena == nullptr || arena->first_mempool == nullptr) { return hdl; }
 
+
+
 	hdl.header = head;
 	hdl.addr = (void *)((char *)head + PD_HEAD_SIZE);
-	hdl.handle_matrix_index = arena->table_count * TABLE_MAX_COL + arena->handle_table[arena->table_count]->entries;
+	hdl.handle_matrix_index = arena->table_count * TABLE_MAX_COL + arena->first_hdl_tbl[arena->table_count].entries_bitmap;
 	hdl.generation = 1;
 
-	if (arena->handle_table[arena->table_count]->entries + 1 > TABLE_MAX_COL ||
-	    arena->handle_table[arena->table_count]->entries == TABLE_MAX_COL)
+	if (arena->first_hdl_tbl[arena->table_count]->entries_bitmap + 1 > TABLE_MAX_COL ||
+	    arena->first_hdl_tbl[arena->table_count]->entries_bitmap == TABLE_MAX_COL)
 	{
-		arena->handle_table[++arena->table_count] = mempool_new_handle_table(arena);
+		arena->first_hdl_tbl[++arena->table_count] = mempool_new_handle_table(arena);
 	}
 
-	Handle_Table *current_table = arena->handle_table[arena->table_count];
-	current_table->handle_entries[current_table->entries] = hdl;
-	head->handle = &current_table->handle_entries[current_table->entries];
-	current_table->entries++;
+	Handle_Table *current_table = &arena->first_hdl_tbl[arena->table_count];
+	current_table->handle_entries[current_table->entries_bitmap] = hdl;
+	head->handle = &current_table->handle_entries[current_table->entries_bitmap];
+	current_table->entries_bitmap++;
 	return hdl;
 }
 
@@ -35,11 +36,11 @@ mempool_create_handle_and_entry(Arena *restrict arena, Pool_Header *restrict hea
 static Handle_Table *
 mempool_new_handle_table(Arena *restrict arena)
 {
-	arena->handle_table[arena->table_count] = mempool_map_mem(PD_HDL_MATRIX_SIZE);
-	if (arena->handle_table[arena->table_count] == nullptr) { return nullptr; }
+	arena->first_hdl_tbl[arena->table_count] = mempool_map_mem(PD_HDL_MATRIX_SIZE);
+	if (arena->first_hdl_tbl[arena->table_count] == nullptr) { return nullptr; }
 
-	Handle_Table *table = arena->handle_table[arena->table_count++];
-	table->entries = 0;
+	Handle_Table *table = arena->first_hdl_tbl[arena->table_count++];
+	table->entries_bitmap = 0;
 
 	return table;
 }
@@ -123,6 +124,7 @@ mempool_find_block(Arena *arena, const size_t requested_size)
 	{
 		if (head->flags == FREE)
 		{
+
 			if (head->block_size == requested_size || head->block_size < new_chunk_size) { return head; }
 			if (head->block_size >= new_chunk_size)
 			{

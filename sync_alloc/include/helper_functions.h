@@ -5,6 +5,7 @@
 #ifndef ARENA_ALLOCATOR_HELPER_FUNCTIONS_H
 #define ARENA_ALLOCATOR_HELPER_FUNCTIONS_H
 
+#include <stddef.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include "defs.h"
@@ -22,17 +23,9 @@ mempool_add_padding(const size_t input) { return (input + (ALIGNMENT - 1)) & (si
 inline static void
 mempool_destroy(void *restrict mem, const size_t bytes)
 {
-	static int index = 0;
 	const int x = munmap(mem, bytes);
-
-	if (x == -1) { goto destroy_fail; }
-
-	printf("pool %d: destroyed\n", ++index);
-	return;
-
-destroy_fail:
-	perror("error: arena destruction failure! this should never happen, there is probably lost memory!\n");
-	fflush(stdout);
+	if (x == -1)
+		perror("error: arena destruction failure! this should never happen, there is probably lost memory!\n");
 }
 
 
@@ -46,6 +39,7 @@ inline static Arena *
 return_base_arena(const Arena_Handle *restrict user_handle)
 {
 	Pool_Header *head = user_handle->header;
+	ptrdiff_t offset =
 
 	if (head->prev_header) { while (head->prev_header) { head = head->prev_header; } }
 	return (Arena *)((char *)head - (PD_POOL_SIZE + PD_ARENA_SIZE));
@@ -57,7 +51,8 @@ mempool_handle_generation_checksum(const Arena *arena, const Arena_Handle *user_
 	const size_t row_index = user_handle->handle_matrix_index / TABLE_MAX_COL;
 	const size_t col_index = user_handle->handle_matrix_index % TABLE_MAX_COL;
 
-	if (arena->handle_table[row_index]->handle_entries[col_index].generation != user_handle->generation)
+
+	if (arena->first_hdl_tbl[row_index]->handle_entries[col_index].generation != user_handle->generation)
 	{
 		return false;
 	}
@@ -71,7 +66,7 @@ mempool_update_table_generation(const Arena_Handle *restrict hdl)
 	const size_t row = hdl->handle_matrix_index / TABLE_MAX_COL;
 	const size_t col = hdl->handle_matrix_index % TABLE_MAX_COL;
 
-	arena->handle_table[row]->handle_entries[col].generation++;
+	arena->first_hdl_tbl[row]->handle_entries[col].generation++;
 }
 
 #endif //ARENA_ALLOCATOR_HELPER_FUNCTIONS_H
