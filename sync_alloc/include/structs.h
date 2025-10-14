@@ -5,8 +5,13 @@
 #ifndef ARENA_ALLOCATOR_STRUCTS_H
 #define ARENA_ALLOCATOR_STRUCTS_H
 
-#include <stdlib.h>
+#include "types.h"
 
+enum Header_Flags {
+	FREE = 0,
+	ALLOCATED = 1,
+	FROZEN = 2,
+};
 
 typedef struct Memory_Slab {
 } Memory_Slab;
@@ -27,8 +32,8 @@ typedef struct Memory_Pool {
 	void *mem;						/**< Pointer to the heap region. */
 	struct Memory_Pool *next_pool;	/**< Pointer to the next pool. */
 	struct Memory_Pool *prev_pool;	/**< Pointer to the previous pool. */
-	size_t pool_size;				/**< Maximum allocated size for this pool in bytes. */
-	size_t pool_offset;				/**< How much space has been used so far in bytes. */
+	u32 pool_size;			/**< Maximum allocated size for this pool in bytes. */
+	u32 pool_offset;			/**< How much space has been used so far in bytes. */
 } Memory_Pool;
 
 /** @brief Memory pool block header, not for huge pools.
@@ -46,21 +51,20 @@ typedef struct Memory_Pool {
  *	Valid flags are: 0 == FREE, 1 == ALLOCATED, 2 == FROZEN.
  */
 typedef struct Pool_Header {
-	//ptrdiff_t next_block_offs;	/**< Offset of the next header. */
-	u_int16_t size;				/**< Size of the block in front of the header.	*/
-	u_int16_t prev_block_size;	/**< Size of the previous header block.			*/
-	u_int16_t handle_idx;		/**< Index to the header's handle.				*/
-	u_int8_t flag;				/**< Flag of the block. 0 FREE, 1 ALLOCATED, 2 FROZEN. */
+	u32 size;				/**< Size of the block in front of the header.	*/
+	u16 prev_block_size;	/**< Size of the previous header block.			*/
+	u16 handle_idx;		/**< Index to the header's handle.				*/
+	//u8 flag;				/**< Flag of the block. 0 FREE, 1 ALLOCATED, 2 FROZEN. */
 } Pool_Header;
 
 typedef struct Pool_Free_Header {
-	u_int32_t next_free_offset_r;
-	u_int32_t prev_free_offset_r;
+	u32 next_free_offset_r;
+	u32 prev_free_offset_r;
 } Pool_Free_Header;
 
 typedef struct Pool_Free_Header_Data {
-	u_int16_t size;
-	u_int16_t handle_idx;
+	u16 size;
+	u16 handle_idx;
 } Pool_Free_Header_Data;
 
 /**	@brief Extended pool header, for use in the huge page pools only.
@@ -75,10 +79,10 @@ typedef struct Pool_Free_Header_Data {
  *	Valid flags are: 0 == FREE, 1 == ALLOCATED, 2 == FROZEN.
  */
 typedef struct Pool_Extended_Header {
-	size_t block_size;		/**< Size of the block in front of the header.	*/
-	size_t prev_block_size;	/**< Size of the previous header block.			*/
-	u_int32_t handle_idx;	/**< Index to the header's handle.				*/
-	u_int8_t flag;			/**< Flag of the block. 0 FREE, 1 ALLOCATED, 2 FROZEN. */
+	usize block_size;		/**< Size of the block in front of the header.	*/
+	usize prev_block_size;	/**< Size of the previous header block.			*/
+	u32 handle_idx;	/**< Index to the header's handle.				*/
+	u8 flag;			/**< Flag of the block. 0 FREE, 1 ALLOCATED, 2 FROZEN. */
 } Extended_Header;
 
 /**	@brief Arena structure for use by the user.
@@ -94,10 +98,10 @@ typedef struct Pool_Extended_Header {
  *	is undefined behavior.
  */
 typedef struct Arena_Handle {
-	void *addr;						/**< address to the user's block. Equivalent to *header + sizeof(header). */
-	Pool_Header *header;			/**< pointer to the sentinel header of the user's block.				  */
-	u_int32_t generation;			/**< generation of pointer, to detect stale handles and use-after-frees.  */
-	u_int32_t handle_matrix_index;	/**< flattened matrix index. Only for internal use.						  */
+	void *addr;					/**< address to the user's block. Equivalent to *header + sizeof(header). */
+	Pool_Header *header;		/**< pointer to the sentinel header of the user's block.				  */
+	u32 generation;				/**< generation of pointer, to detect stale handles and use-after-frees.  */
+	u32 handle_matrix_index;	/**< flattened matrix index.											  */
 } Arena_Handle;
 
 
@@ -111,18 +115,18 @@ typedef struct Arena_Handle {
  */
 typedef struct Handle_Table {
 	struct Handle_Table *next_table;
-	u_int64_t entries_bitmap;		/**< Bitmap of used and free handles.				*/
-	u_int16_t table_id;				/**< The index of the current table.				*/
+	u64 entries_bitmap;		/**< Bitmap of used and free handles.				*/
+	u16 table_id;				/**< The index of the current table.				*/
 	Arena_Handle handle_entries[];	/**< array of entries via FAM. index via entries bit.	*/
 } Handle_Table;
 
 
 typedef struct Arena {
-	u_int32_t table_count;		/**< How many tables there are.*/
 	Handle_Table *first_hdl_tbl;	/**< Pointer of LL of tables, matrix. */
-	Memory_Pool *first_mempool;	/**< Pointer to the very first memory pool.	 */
-	Memory_Pool *first_hp_pool; /**< Pointer to the first huge page pool. */
-	size_t total_mem_size;		/**< The total size of all pools together.	 */
+	Memory_Pool *first_mempool;		/**< Pointer to the very first memory pool.	 */
+	Memory_Pool *first_hp_pool;		/**< Pointer to the first huge page pool. */
+	usize total_mem_size;			/**< The total size of all pools together.	 */
+	u32 table_count;				/**< How many tables there are.*/
 } Arena;
 
 #endif //ARENA_ALLOCATOR_STRUCTS_H

@@ -8,4 +8,5 @@ add_library(sync_alloc STATIC
 			include/helper_functions.h
 			alloc_lib.c
 			internal_alloc.c
+			include/types.h
 )

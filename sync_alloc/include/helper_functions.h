@@ -12,13 +12,13 @@
 #include "structs.h"
 
 inline static void *
-mempool_map_mem(const size_t bytes)
+mempool_map_mem(const usize bytes)
 {
 	return mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 }
 
-inline static size_t
-mempool_add_padding(const size_t input) { return (input + (ALIGNMENT - 1)) & (size_t)~(ALIGNMENT - 1); }
+inline static usize
+mempool_add_padding(const usize input) { return (input + (ALIGNMENT - 1)) & (usize)~(ALIGNMENT - 1); }
 
 inline static void
 mempool_destroy(void *restrict mem, const size_t bytes)
@@ -33,40 +33,70 @@ mempool_destroy(void *restrict mem, const size_t bytes)
 /// @param head Header ptr to the header to do ptr arithmetic,
 /// to calculate the location of the block.
 inline static void *
-return_vptr(Pool_Header *head) { return (char *)head + PD_HEAD_SIZE; }
+return_block_addr(Pool_Header *head) { return (char *)head + PD_HEAD_SIZE; }
 
 inline static Arena *
 return_base_arena(const Arena_Handle *restrict user_handle)
 {
 	Pool_Header *head = user_handle->header;
-	ptrdiff_t offset =
 
-	if (head->prev_header) { while (head->prev_header) { head = head->prev_header; } }
+	const Pool_Header *prev_head = (head->prev_block_size != 0) ? head - head->prev_block_size : nullptr;
+	if (prev_head == nullptr)
+		goto found_last_head;
+	while (prev_head->prev_block_size != 0)
+		prev_head = head - head->prev_block_size;
+
+found_last_head:
 	return (Arena *)((char *)head - (PD_POOL_SIZE + PD_ARENA_SIZE));
 }
 
-inline static bool
-mempool_handle_generation_checksum(const Arena *arena, const Arena_Handle *user_handle)
+inline static void
+mempool_calculate_matrix(const Arena_Handle *restrict hdl, usize *restrict row, usize *restrict col)
 {
-	const size_t row_index = user_handle->handle_matrix_index / TABLE_MAX_COL;
-	const size_t col_index = user_handle->handle_matrix_index % TABLE_MAX_COL;
+	if (row == nullptr || col == nullptr || hdl == nullptr)
+		return;
+	*row = hdl->handle_matrix_index / MAX_TABLE_HNDL_COLS;
+	*col = hdl->handle_matrix_index % MAX_TABLE_HNDL_COLS;
+}
 
+inline static bool
+mempool_handle_generation_checksum(const Arena *restrict arena, const Arena_Handle *restrict hdl)
+{
+	usize row, col;
+	mempool_calculate_matrix(hdl, &row, &col);
 
-	if (arena->first_hdl_tbl[row_index]->handle_entries[col_index].generation != user_handle->generation)
-	{
+	const Handle_Table *table = arena->first_hdl_tbl;
+
+	if (row <= 1)
+		goto checksum;
+	for (usize i = 0; i < row; i++)
+		table = table->next_table;
+
+checksum:
+	if (table->handle_entries[col].generation != hdl->generation)
 		return false;
-	}
 	return true;
 }
 
 inline static void
 mempool_update_table_generation(const Arena_Handle *restrict hdl)
 {
+	if (hdl == nullptr)
+		return;
 	const Arena *restrict arena = return_base_arena(hdl);
-	const size_t row = hdl->handle_matrix_index / TABLE_MAX_COL;
-	const size_t col = hdl->handle_matrix_index % TABLE_MAX_COL;
 
-	arena->first_hdl_tbl[row]->handle_entries[col].generation++;
+	usize row, col;
+	mempool_calculate_matrix(hdl, &row, &col);
+
+	Handle_Table *table = arena->first_hdl_tbl;
+
+	if (row <= 1)
+		goto update_generation;
+	for (usize i = 0; i < row; i++)
+		table = table->next_table;
+
+update_generation:
+	table->handle_entries[col].generation++;
 }
 
 #endif //ARENA_ALLOCATOR_HELPER_FUNCTIONS_H
