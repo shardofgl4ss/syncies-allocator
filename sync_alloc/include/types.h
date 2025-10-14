@@ -5,7 +5,8 @@
 #ifndef ARENA_ALLOCATOR_TYPES_H
 #define ARENA_ALLOCATOR_TYPES_H
 
-#include <stdlib.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 typedef int64_t i64;
 typedef int32_t i32;
@@ -23,5 +24,6 @@ typedef long double f128;
 typedef size_t usize;
 typedef u_int64_t bit64;
 typedef u_int32_t bit32;
+typedef uintptr_t uintptr;
 
 #endif //ARENA_ALLOCATOR_TYPES_H

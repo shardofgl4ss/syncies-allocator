@@ -32,8 +32,9 @@ typedef struct Memory_Pool {
 	void *mem;						/**< Pointer to the heap region. */
 	struct Memory_Pool *next_pool;	/**< Pointer to the next pool. */
 	struct Memory_Pool *prev_pool;	/**< Pointer to the previous pool. */
-	u32 pool_size;			/**< Maximum allocated size for this pool in bytes. */
-	u32 pool_offset;			/**< How much space has been used so far in bytes. */
+	u32 pool_size;					/**< Maximum allocated size for this pool in bytes. */
+	u32 pool_offset;				/**< How much space has been used so far in bytes. */
+	u32 first_free_offset;
 } Memory_Pool;
 
 /** @brief Memory pool block header, not for huge pools.
@@ -53,9 +54,11 @@ typedef struct Memory_Pool {
  *	@details
  *	flags: @code flag = header->size & 0x7; @endcode
  *	@details
- *	size:  @code size = header->size >> 3; @endcode
+ *	size: @code size = header->size >> 3; @endcode
  *	@details
  *	set flag: @code size = (size & 0x7) | ((u8)FLAG_ENUM & 0x7); @endcode
+ *	@details
+ *	set size: @code head->size = (u16)((new_size + PD_HEAD_SIZE) << 3);
  */
 typedef struct Pool_Header {
 	u32 handle_idx;			/**< Index to the header's handle.				*/
@@ -65,14 +68,10 @@ typedef struct Pool_Header {
 } Pool_Header;
 
 typedef struct Pool_Free_Header {
-	u32 next_free_offset_r;
-	u32 prev_free_offset_r;
-} Pool_Free_Header;
-
-typedef struct Pool_Free_Header_Data {
+	u32 next_free_offset;
+	u32 prev_free_offset;
 	u16 size;
-	u32 handle_idx;
-} Pool_Free_Header_Data;
+} Pool_Free_Header;
 
 /**	@brief Extended pool header, for use in the huge page pools only.
  *

@@ -90,7 +90,7 @@ mempool_update_table_generation(const Arena_Handle *restrict hdl)
 
 	Handle_Table *table = arena->first_hdl_tbl;
 
-	if (row <= 1)
+	if (row == 0)
 		goto update_generation;
 	for (usize i = 0; i < row; i++)
 		table = table->next_table;

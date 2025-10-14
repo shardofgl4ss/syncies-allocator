@@ -26,14 +26,13 @@ mempool_new_handle_table(Arena *restrict arena, Handle_Table *restrict table);
  *	@param pool Pointer to the pool to create the header in.
  *	@param size Size of the block and header.
  *	@param offset How many bytes from the base of the pool.
- *	@param pool_id The ID of the pool the header is in, to detect cross-pool linkage. Starts from 0.
  *	@return a valid block header pointer.
  *
- *	@note Does not link headers. Does not update memory offset of the pool.
+ *	@note Does not update memory offset of the pool.
  *	@note The header is set as ALLOCATED by default.
  */
 Pool_Header *
-mempool_create_header(const Memory_Pool *restrict pool, u16 size, usize offset);
+mempool_create_header(const Memory_Pool *restrict pool, u16 size, u32 offset);
 
 /** @brief Creates a new memory pool.
  *	@param arena Pointer to the arena to create a new pool in.
@@ -44,7 +43,7 @@ mempool_create_header(const Memory_Pool *restrict pool, u16 size, usize offset);
  *	@warning Returns NULL if allocating a new pool fails, or if provided size is zero.
  */
 static Memory_Pool *
-mempool_create_internal_pool(Arena *restrict arena, size_t size);
+mempool_create_internal_pool(Arena *restrict arena, u32 size);
 
 /** @brief Analyzes the header-block chain, making a new header if there is no free one to use.
  *	If there is no space at all in the pool, it will create a new pool for it.
@@ -55,6 +54,6 @@ mempool_create_internal_pool(Arena *restrict arena, size_t size);
  *	@warning Will return NULL if a new pool's header could not be made, which should be impossible.
  */
 static Pool_Header *
-mempool_find_block(Arena *arena, size_t requested_size);
+mempool_find_block(const Arena *restrict arena, u32 requested_size);
 
 #endif //ARENA_ALLOCATOR_INTERNAL_ALLOC_H

@@ -70,7 +70,7 @@ fail_null:
 
 
 Pool_Header *
-mempool_create_header(const Memory_Pool *restrict pool, const u16 size, const usize offset)
+mempool_create_header(const Memory_Pool *restrict pool, const u16 size, const u32 offset)
 {
 	if ((pool->pool_size - pool->pool_offset) < (mempool_add_padding(size) + PD_HEAD_SIZE))
 		goto mp_head_create_error;
@@ -92,12 +92,9 @@ mp_head_create_error:
 
 
 static Memory_Pool *
-mempool_create_internal_pool(Arena *restrict arena, const size_t size)
+mempool_create_internal_pool(Arena *restrict arena, const u32 size)
 {
-	if (arena == nullptr)
-		goto mp_internal_error;
-
-	Memory_Pool *pool = arena->first_mempool ? arena->first_mempool : nullptr;
+	Memory_Pool *pool = arena != nullptr ? arena->first_mempool : nullptr;
 
 	if (pool == nullptr)
 		goto mp_internal_error;
@@ -117,9 +114,15 @@ mempool_create_internal_pool(Arena *restrict arena, const size_t size)
 
 	new_pool->pool_size = size;
 	new_pool->pool_offset = 0;
+	new_pool->first_free_offset = 0;
 	new_pool->next_pool = nullptr;
 
 	arena->total_mem_size += new_pool->pool_size;
+	Pool_Header *sentinel_header = new_pool->mem + (size - PD_HEAD_SIZE);
+
+	sentinel_header->handle_idx = 0;
+	sentinel_header->size = 0;
+	sentinel_header->prev_block_size = 0;
 
 	return new_pool;
 
@@ -131,42 +134,66 @@ mp_internal_error:
 
 
 static Pool_Header *
-mempool_find_block(Arena *arena, const size_t requested_size)
+mempool_find_block(const Arena *restrict arena, const u32 requested_size)
 {
-	if (!arena || requested_size == 0 || arena->first_mempool->pool_size == 0) { return nullptr; }
+	if (arena == nullptr
+	    || arena->first_mempool == nullptr
+	    || requested_size == 0
+	) { goto fail; }
+
+	u32 user_size = requested_size;
+	if (user_size < MINIMUM_BLOCK_ALLOC)
+		user_size = MINIMUM_BLOCK_ALLOC;
 	Memory_Pool *pool = arena->first_mempool;
-	u_int32_t pool_idx = 0;
-
-	// there is no first header if the offset is zero.
-	if (pool->pool_offset == 0) { return mempool_create_header(pool, requested_size, pool->pool_offset, pool_idx); }
-
-	const size_t new_chunk_size = requested_size + PD_HEAD_SIZE;
-	auto *head = (Pool_Header *)((char *)pool->mem);
-
-	while (head->next_header != nullptr)
+	u32 free_offset = pool->first_free_offset;
+	// The first pool that has free blocks is selected. First match wins for speed.
+	if (free_offset == 0)
 	{
-		if (head->flags == FREE)
+		while (pool != nullptr)
 		{
-			if (head->block_size == requested_size || head->block_size < new_chunk_size) { return head; }
-			if (head->block_size >= new_chunk_size)
-			{
-				// we cant use the create header function because we cant
-				// figure out the offset from this specific header.
-				const size_t tombstoned_blocks = head->block_size - new_chunk_size;
-				auto *new_head = (Pool_Header *)((char *)head + tombstoned_blocks);
-				head->block_size -= tombstoned_blocks;
-				new_head->block_size = requested_size;
-				new_head->flags = ALLOCATED;
-
-				if (head->next_header != nullptr) { new_head->next_header = head->next_header; }
-
-				new_head->prev_header = head;
-				head->next_header = new_head;
-
-				arena_defragment(arena, true);
-
-				return new_head;
-			}
+			if (free_offset != 0)
+				goto red_core_loaded;
+			if (pool->next_pool == nullptr)
+				goto fail;
+			pool = pool->next_pool;
+			free_offset = pool->first_free_offset;
 		}
+		return nullptr;
 	}
+
+red_core_loaded:
+	// fix later
+	auto *free_header = (Pool_Free_Header *)((char *)pool->mem + free_offset);
+	const u32 free_head_offs = (u32)((uintptr)pool - (uintptr)free_header);
+
+	while (free_header->size < user_size)
+	{
+		if (free_header->next_free_offset == 0)
+		{
+			if (pool->next_pool != nullptr && pool->next_pool->first_free_offset != 0)
+			{
+				pool = pool->next_pool;
+				goto red_core_loaded;
+			}
+			goto fail;
+		}
+		free_offset = (u32)((uintptr)pool->mem - (uintptr)free_header->next_free_offset);
+		free_header = (Pool_Free_Header *)((char *)pool->mem + free_offset);
+	}
+new_head_frame:
+	Pool_Header *head = mempool_create_header(pool, free_header->size, free_head_offs);
+	if (head == nullptr)
+	{
+		free_offset = (u32)((uintptr)pool->mem - (uintptr)free_header->next_free_offset);
+		free_header = (Pool_Free_Header *)((char *)pool->mem + free_offset);
+		goto new_head_frame;
+	}
+	if ((head->size >> 3) > user_size + PD_HEAD_SIZE)
+	{
+		auto *new_head = (Pool_Header *)((char *)head + PD_HEAD_SIZE + user_size);
+	}
+
+
+fail:
+	return nullptr;
 }
