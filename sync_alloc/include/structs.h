@@ -35,6 +35,7 @@ typedef struct Memory_Pool {
 	u32 pool_size;					/**< Maximum allocated size for this pool in bytes. */
 	u32 pool_offset;				/**< How much space has been used so far in bytes. */
 	u32 first_free_offset;
+	u32 free_count;
 } Memory_Pool;
 
 /** @brief Memory pool block header, not for huge pools.

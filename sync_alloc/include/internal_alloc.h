@@ -54,6 +54,6 @@ mempool_create_internal_pool(Arena *restrict arena, u32 size);
  *	@warning Will return NULL if a new pool's header could not be made, which should be impossible.
  */
 static Pool_Header *
-mempool_find_block(const Arena *restrict arena, u32 requested_size);
+mempool_find_block(const Arena *restrict arena, u16 requested_size);
 
 #endif //ARENA_ALLOCATOR_INTERNAL_ALLOC_H

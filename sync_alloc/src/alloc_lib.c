@@ -10,7 +10,7 @@
 extern Arena *
 arena_create()
 {
-	void *raw_pool = mempool_map_mem(
+	void *raw_pool = mp_helper_map_mem(
 		(MAX_FIRST_POOL_SIZE + PD_RESERVED_F_SIZE) + (ALIGNMENT - 1) & (usize)~(ALIGNMENT - 1)
 	);
 
@@ -54,21 +54,21 @@ arena_destroy(const Arena *const restrict arena)
 
 	if (pool->next_pool == nullptr)
 	{
-		mempool_destroy(pool->mem, pool->pool_size + PD_RESERVED_F_SIZE);
+		mp_helper_destroy(pool->mem, pool->pool_size + PD_RESERVED_F_SIZE);
 		printf("arena destroyed\n");
 		fflush(stdout);
 	}
 
 	pool = pool->next_pool;
-	mempool_destroy(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_RESERVED_F_SIZE);
+	mp_helper_destroy(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_RESERVED_F_SIZE);
 
 	while (pool->next_pool != nullptr)
 	{
 		pool = pool->next_pool;
-		mempool_destroy(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_POOL_SIZE);
+		mp_helper_destroy(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_POOL_SIZE);
 	}
 
-	mempool_destroy(pool->mem, pool->pool_size + PD_POOL_SIZE);
+	mp_helper_destroy(pool->mem, pool->pool_size + PD_POOL_SIZE);
 
 	printf("arena destroyed\n");
 	fflush(stdout);
@@ -137,7 +137,7 @@ light_defrag:
 	empty_pool:
 		if (pool->prev_pool == nullptr)
 			continue;
-		mempool_destroy(pool->mem, pool->pool_size + PD_POOL_SIZE);
+		mp_helper_destroy(pool->mem, pool->pool_size + PD_POOL_SIZE);
 	}
 	return;
 
@@ -159,7 +159,7 @@ arena_alloc(Arena *arena, const size_t size)
 
 	if (arena == nullptr || size == 0 || arena->first_mempool == nullptr) { return user_handle; }
 
-	const size_t input_bytes = mempool_add_padding(size);
+	const size_t input_bytes = mp_helper_add_padding(size);
 	if (input_bytes != size)
 	{
 		printf("debug: padding has been added. input: %lu, padded: %lu\n", size, input_bytes);
@@ -206,9 +206,9 @@ arena_reset(const Arena *restrict arena, const int reset_type)
 extern void
 arena_free(Arena_Handle *user_handle)
 {
-	Arena *arena = return_base_arena(user_handle);
+	Arena *arena = mp_helper_return_base_arena(user_handle);
 
-	if (!mempool_handle_generation_checksum(arena, user_handle))
+	if (!mp_helper_handle_generation_checksum(arena, user_handle))
 	{
 		perror("error: stale handle detected!\n");
 		return;
@@ -228,10 +228,10 @@ arena_realloc(Arena_Handle *user_handle, size_t size)
 	// it's probably best to memcpy here to allow reallocation, and track
 	// the address by updating the handle if it is not locked.
 	if (user_handle->header->flags == FROZEN || user_handle == nullptr) { return 1; }
-	size = mempool_add_padding(size);
+	size = mp_helper_add_padding(size);
 
 	Pool_Header *old_head = user_handle->header;
-	Arena *arena = return_base_arena(user_handle);
+	Arena *arena = mp_helper_return_base_arena(user_handle);
 	Pool_Header *new_head = mempool_find_block(arena, size);
 	if (!new_head) { return 1; }
 
@@ -254,9 +254,9 @@ arena_realloc(Arena_Handle *user_handle, size_t size)
 extern void *
 handle_lock(Arena_Handle *restrict user_handle)
 {
-	const Arena *arena = return_base_arena(user_handle);
+	const Arena *arena = mp_helper_return_base_arena(user_handle);
 
-	if (!mempool_handle_generation_checksum(arena, user_handle))
+	if (!mp_helper_handle_generation_checksum(arena, user_handle))
 	{
 		perror("error: stale handle detected!\n");
 		return nullptr;
@@ -272,10 +272,10 @@ handle_lock(Arena_Handle *restrict user_handle)
 extern void
 handle_unlock(Arena_Handle *user_handle)
 {
-	const Arena *arena = return_base_arena(user_handle);
-	mempool_update_table_generation(user_handle);
+	const Arena *arena = mp_helper_return_base_arena(user_handle);
+	mp_helper_update_table_generation(user_handle);
 
-	if (!mempool_handle_generation_checksum(arena, user_handle))
+	if (!mp_helper_handle_generation_checksum(arena, user_handle))
 	{
 		perror("error: stale handle detected! not continuing!\n");
 		return;

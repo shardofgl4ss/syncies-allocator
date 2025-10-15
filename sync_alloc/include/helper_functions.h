@@ -12,16 +12,16 @@
 #include "structs.h"
 
 inline static void *
-mempool_map_mem(const usize bytes)
+mp_helper_map_mem(const usize bytes)
 {
 	return mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 }
 
 inline static usize
-mempool_add_padding(const usize input) { return (input + (ALIGNMENT - 1)) & (usize)~(ALIGNMENT - 1); }
+mp_helper_add_padding(const usize input) { return (input + (ALIGNMENT - 1)) & (usize)~(ALIGNMENT - 1); }
 
 inline static void
-mempool_destroy(void *restrict mem, const size_t bytes)
+mp_helper_destroy(void *restrict mem, const size_t bytes)
 {
 	const int x = munmap(mem, bytes);
 	if (x == -1)
@@ -33,11 +33,14 @@ mempool_destroy(void *restrict mem, const size_t bytes)
 /// @param head Header ptr to the header to do ptr arithmetic,
 /// to calculate the location of the block.
 inline static void *
-return_block_addr(Pool_Header *head) { return (char *)head + PD_HEAD_SIZE; }
+mp_helper_return_block_addr(Pool_Header *head) { return (char *)head + PD_HEAD_SIZE; }
 
 inline static Arena *
-return_base_arena(const Arena_Handle *restrict user_handle)
+mp_helper_return_base_arena(const Arena_Handle *restrict user_handle)
 {
+	if (user_handle == nullptr)
+		return nullptr;
+
 	Pool_Header *head = user_handle->header;
 
 	const Pool_Header *prev_head = (head->prev_block_size != 0) ? head - head->prev_block_size : nullptr;
@@ -51,7 +54,7 @@ found_last_head:
 }
 
 inline static void
-mempool_calculate_matrix(const Arena_Handle *restrict hdl, usize *restrict row, usize *restrict col)
+mp_helper_calculate_matrix(const Arena_Handle *restrict hdl, usize *restrict row, usize *restrict col)
 {
 	if (row == nullptr || col == nullptr || hdl == nullptr)
 		return;
@@ -60,10 +63,10 @@ mempool_calculate_matrix(const Arena_Handle *restrict hdl, usize *restrict row, 
 }
 
 inline static bool
-mempool_handle_generation_checksum(const Arena *restrict arena, const Arena_Handle *restrict hdl)
+mp_helper_handle_generation_checksum(const Arena *restrict arena, const Arena_Handle *restrict hdl)
 {
 	usize row, col;
-	mempool_calculate_matrix(hdl, &row, &col);
+	mp_helper_calculate_matrix(hdl, &row, &col);
 
 	const Handle_Table *table = arena->first_hdl_tbl;
 
@@ -79,14 +82,14 @@ checksum:
 }
 
 inline static void
-mempool_update_table_generation(const Arena_Handle *restrict hdl)
+mp_helper_update_table_generation(const Arena_Handle *restrict hdl)
 {
 	if (hdl == nullptr)
 		return;
-	const Arena *restrict arena = return_base_arena(hdl);
+	const Arena *restrict arena = mp_helper_return_base_arena(hdl);
 
 	usize row, col;
-	mempool_calculate_matrix(hdl, &row, &col);
+	mp_helper_calculate_matrix(hdl, &row, &col);
 
 	Handle_Table *table = arena->first_hdl_tbl;
 
