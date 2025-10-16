@@ -9,4 +9,7 @@ add_library(sync_alloc SHARED
 			src/alloc_lib.c
 			src/internal_alloc.c
 			include/types.h
+			src/helper_functions.c
+			src/handle.c
+			include/handle.h
 )

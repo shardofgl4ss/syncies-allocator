@@ -7,17 +7,6 @@
 
 #include "helper_functions.h"
 
-static Arena_Handle
-mempool_create_handle_and_entry(Arena *restrict arena, Pool_Header *restrict head);
-
-/** @brief Creates a new handle table. Does not increment table_count by itself, do that before calling.
- *
- * @param arena The arena to create a new table on.
- * @param table The table to map.
- * @return a valid handle table if there is enough system memory.
- */
-static Handle_Table *
-mempool_new_handle_table(Arena *restrict arena, Handle_Table *restrict table);
 
 /**	@brief Creates a new block header
  *
@@ -31,7 +20,7 @@ mempool_new_handle_table(Arena *restrict arena, Handle_Table *restrict table);
  *	@note Does not update memory offset of the pool.
  *	@note The header is set as ALLOCATED by default.
  */
-Pool_Header *
+static Pool_Header *
 mempool_create_header(const Memory_Pool *restrict pool, u16 size, u32 offset);
 
 /** @brief Creates a new memory pool.

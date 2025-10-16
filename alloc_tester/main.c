@@ -1,4 +1,3 @@
-//#include "../sync_alloc/include/sync_alloc.h"
 #include <stdio.h>
 
 int
