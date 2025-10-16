@@ -5,12 +5,13 @@
 #ifndef ARENA_ALLOCATOR_STRUCTS_H
 #define ARENA_ALLOCATOR_STRUCTS_H
 
+#include "defs.h"
 #include "types.h"
 
 enum Header_Flags {
-	FREE = 0,
+	FREE      = 0,
 	ALLOCATED = 1,
-	FROZEN = 2,
+	FROZEN    = 2,
 };
 
 typedef struct Memory_Slab {
@@ -59,13 +60,12 @@ typedef struct Memory_Pool {
  *	@details
  *	set flag: @code size = (size & 0x7) | ((u8)FLAG_ENUM & 0x7); @endcode
  *	@details
- *	set size: @code head->size = (u16)((new_size + PD_HEAD_SIZE) << 3);
+ *	set size: @code head->size = (u16)((new_size + PD_HEAD_SIZE) << 3); @endcode
  */
 typedef struct Pool_Header {
 	u32 handle_idx;			/**< Index to the header's handle.				*/
 	u16 size;				/**< Size of the block in front of the header.	*/
 	u16 prev_block_size;	/**< Size of the previous header block.			*/
-	//u8 flag;				/**< Flag of the block. 0 FREE, 1 ALLOCATED, 2 FROZEN. */
 } Pool_Header;
 
 typedef struct Pool_Free_Header {
@@ -138,5 +138,22 @@ typedef struct Arena {
 	usize total_mem_size;			/**< The total size of all pools together.	 */
 	u32 table_count;				/**< How many tables there are.*/
 } Arena;
+
+typedef struct Debug_VTable {
+	void (*to_console)(const char *msg, bool err);
+	void (*debug_print_all)(const Arena *arena);
+} Debug_VTable;
+
+/* It is very important to have everything aligned in memory, so we should go out of our way to make it that way. *
+ * PD here stands for PADDED, F for FIRST as the first arena's pool is a special case. PH also stands for Pool Header. */
+static constexpr u16 PD_ARENA_SIZE = (sizeof(Arena) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_POOL_SIZE = (sizeof(Memory_Pool) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HEAD_SIZE = (sizeof(Pool_Header) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_FREE_PH_SIZE = (sizeof(Pool_Free_Header) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HANDLE_SIZE = (sizeof(Arena_Handle) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_TABLE_SIZE = (sizeof(Handle_Table) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_RESERVED_F_SIZE = (PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HDL_MATRIX_SIZE = ((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE) + (ALIGNMENT - 1) & (
+	                                          u16)~(ALIGNMENT - 1);
 
 #endif //ARENA_ALLOCATOR_STRUCTS_H

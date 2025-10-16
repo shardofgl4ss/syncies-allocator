@@ -5,8 +5,7 @@
 #ifndef ARENA_ALLOCATOR_INTERNAL_ALLOC_H
 #define ARENA_ALLOCATOR_INTERNAL_ALLOC_H
 
-#include "helper_functions.h"
-
+#include "structs.h"
 
 /**	@brief Creates a new block header
  *
@@ -22,17 +21,6 @@
  */
 static Pool_Header *
 mempool_create_header(const Memory_Pool *restrict pool, u16 size, u32 offset);
-
-/** @brief Creates a new memory pool.
- *	@param arena Pointer to the arena to create a new pool in.
- *	@param size How many bytes to give to the new pool.
- *	@return	Returns a pointer to the new memory pool.
- *
- *	@note Handles linking pools, and updating the total_mem_size in the arena struct.
- *	@warning Returns NULL if allocating a new pool fails, or if provided size is zero.
- */
-static Memory_Pool *
-mempool_create_internal_pool(Arena *restrict arena, u32 size);
 
 /** @brief Analyzes the header-block chain, making a new header if there is no free one to use.
  *	If there is no space at all in the pool, it will create a new pool for it.

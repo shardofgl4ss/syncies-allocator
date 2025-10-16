@@ -12,4 +12,8 @@ add_library(sync_alloc SHARED
 			src/helper_functions.c
 			src/handle.c
 			include/handle.h
+			src/debug.c
+			include/debug.h
+			src/alloc_init.c
+			include/alloc_init.h
 )
