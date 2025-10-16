@@ -6,18 +6,18 @@
 #define ARENA_ALLOCATOR_DEFS_H
 
 #if !defined(__linux__)
-#	pragma message("sync_allocator is not supported on platforms except for Linux.")
+#	warning warning: sync_allocator is not supported on platforms except for Linux.
 #endif
 
 #if !defined(__x86_64__)
-	static_assert(0, "sync_allocator requires 64 bit x86 architecture.");
+static_assert(0, "sync_allocator requires 64 bit x86 architecture.");
 #endif
 
 #ifdef __GNUC__
 #	if __GNUC__ >= 11 && !defined(__clang__)
 #		define ATTR_MALLOC(f, x) __attribute__((malloc(f, x)))
 #	else
-		// Clang doesn't have __attribute__((malloc(a, b))) yet :(
+/*		Clang doesn't have __attribute__((malloc(a, b))) yet :( */
 #		define ATTR_MALLOC(f, x)
 #	endif
 #	define ATTR_ALLOC_SIZE(i) __attribute__((alloc_size(i)))
@@ -44,28 +44,28 @@
 #ifndef ALIGNMENT
 #	define	ALIGNMENT	8
 #endif
-
-#ifndef ALLOC_DEBUG_LVL
-#	define ALLOC_DEBUG_LVL 2
-#endif
-
 static_assert(
 	(ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= 8) && (ALIGNMENT < 128),
 	"ALIGNMENT must be a power of 8 and less then 128!\n"
 );
 
-#include "types.h"
+#ifndef ALLOC_DEBUG_LVL
+#	define ALLOC_DEBUG_LVL 2
+#endif
+static_assert(
+	ALLOC_DEBUG_LVL >= 0 && ALLOC_DEBUG_LVL <= 2,
+	"ALLOC_DEBUG_LVL must be either 0, 1, or 2!\n"
+);
 
-// I might convert these to #defines later for possible configuration.
-static constexpr u32 KIBIBYTE = 1024;
-static constexpr u32 MEBIBYTE = 1024 * KIBIBYTE;
-static constexpr u32 GIBIBYTE = 1024 * MEBIBYTE;
-static constexpr u64 MAX_ALLOC_HUGE_SIZE = GIBIBYTE * 4;	// 4 GiB
-static constexpr u64 MAX_ALLOC_POOL_SIZE = KIBIBYTE * 64;	// 64 KiB
-static constexpr u32 MAX_FIRST_POOL_SIZE = KIBIBYTE * 128;	// 128 KiB
-static constexpr u32 MAX_POOL_SIZE = GIBIBYTE * 2;			// 2 GiB
-static constexpr u16 MAX_TABLE_HNDL_COLS = 64;				// 64 B
-static constexpr u16 MAX_ALLOC_SLAB_SIZE = 256;				// 256 B
-static constexpr u16 MINIMUM_BLOCK_ALLOC = ALIGNMENT;
+#define KIBIBYTE 1024
+#define MEBIBYTE (1024 * KIBIBYTE)
+#define GIBIBYTE (1024 * MEBIBYTE)
+#define MAX_ALLOC_HUGE_SIZE (GIBIBYTE * 4)		// 4 GiB
+#define MAX_ALLOC_POOL_SIZE (KIBIBYTE * 64)		// 64 KiB
+#define MAX_FIRST_POOL_SIZE (KIBIBYTE * 128)	// 128 KiB
+#define MAX_POOL_SIZE (GIBIBYTE * 2)			// 2 GiB
+#define MAX_TABLE_HNDL_COLS 64					// 64 B
+#define MAX_ALLOC_SLAB_SIZE 256					// 256 B
+#define MINIMUM_BLOCK_ALLOC ALIGNMENT
 
 #endif //ARENA_ALLOCATOR_DEFS_H
