@@ -3,8 +3,10 @@
 //
 
 #include "handle.h"
+#include "helper_functions.h"
+#include <stdbit.h>
 
-static Arena_Handle
+Arena_Handle
 mempool_create_handle_and_entry(Arena *restrict arena, Pool_Header *restrict head)
 {
 	Arena_Handle hdl = {};
@@ -12,12 +14,10 @@ mempool_create_handle_and_entry(Arena *restrict arena, Pool_Header *restrict hea
 	if (head == nullptr || arena == nullptr || arena->first_mempool == nullptr) { return hdl; }
 
 reloop_hdl_tbl:
-	while (MAX_TABLE_HNDL_COLS == __builtin_popcountll(table->entries_bitmap))
-	{
+	while (MAX_TABLE_HNDL_COLS == stdc_count_ones(table->entries_bitmap)) {
 		if (table->next_table != nullptr)
 			table = table->next_table;
-		else
-		{
+		else {
 			table->next_table = mempool_new_handle_table(arena, table);
 			if (table->next_table != nullptr)
 				return hdl;
@@ -25,9 +25,10 @@ reloop_hdl_tbl:
 		}
 	}
 
-	const i32 handle_idx = __builtin_ctzll(~table->entries_bitmap);
-	if (handle_idx == -1 || handle_idx < 0)
+	u32 handle_idx = stdc_first_trailing_one(table->entries_bitmap);
+	if (handle_idx == 0)
 		goto reloop_hdl_tbl;
+	--handle_idx;
 	table->entries_bitmap |= (1ull << handle_idx);
 
 	hdl.header = head;
@@ -41,7 +42,7 @@ reloop_hdl_tbl:
 }
 
 
-static Handle_Table *
+Handle_Table *
 mempool_new_handle_table(Arena *restrict arena, Handle_Table *restrict table)
 {
 	if (table == nullptr)

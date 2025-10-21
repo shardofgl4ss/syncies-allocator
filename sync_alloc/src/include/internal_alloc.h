@@ -5,7 +5,7 @@
 #ifndef ARENA_ALLOCATOR_INTERNAL_ALLOC_H
 #define ARENA_ALLOCATOR_INTERNAL_ALLOC_H
 
-#include "structs.h"
+#include "../../include/structs.h"
 
 /**	@brief Creates a new block header
  *

@@ -7,6 +7,7 @@
 
 #include "defs.h"
 #include "types.h"
+#include <stdio.h>
 
 enum Header_Flags {
 	FREE      = 0,
@@ -140,8 +141,10 @@ typedef struct Arena {
 } Arena;
 
 typedef struct Debug_VTable {
-	void (*to_console)(const char *msg, bool err);
-	void (*debug_print_all)(const Arena *arena);
+	void
+	(*debug_print_all)(const Arena *restrict arena);
+	void
+	(*to_console)(void (*log_stream)(const char *restrict string, va_list arg_list), const char *restrict str, ...);
 } Debug_VTable;
 
 /* It is very important to have everything aligned in memory, so we should go out of our way to make it that way. *
@@ -152,8 +155,8 @@ static constexpr u16 PD_HEAD_SIZE = (sizeof(Pool_Header) + (ALIGNMENT - 1)) & (u
 static constexpr u16 PD_FREE_PH_SIZE = (sizeof(Pool_Free_Header) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HANDLE_SIZE = (sizeof(Arena_Handle) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_TABLE_SIZE = (sizeof(Handle_Table) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_RESERVED_F_SIZE = (PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_HDL_MATRIX_SIZE = ((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE) + (ALIGNMENT - 1) & (
-	                                          u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HDL_MATRIX_SIZE = ((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE)) + (ALIGNMENT - 1))
+                                          & (u16)~(ALIGNMENT - 1);
 
 #endif //ARENA_ALLOCATOR_STRUCTS_H

@@ -5,8 +5,8 @@
 #include "alloc_lib.h"
 #include <stdio.h>
 #include <string.h>
-#include "alloc_init.h"
-#include "handle.h"
+#include "include/alloc_init.h"
+#include "include/handle.h"
 #include "helper_functions.h"
 #include "internal_alloc.h"
 
@@ -17,11 +17,11 @@ arena_create()
 	debug_init();
 	Arena *arena = arena_init();
 	if (arena != nullptr) {
-		logger.to_console("Arena creation successful!", 0);
+		sync_alloc_log.to_console("Arena creation successful!", 0);
 		return arena;
 	}
 
-	logger.to_console(
+	sync_alloc_log.to_console(
 		"ERR_NO_MEMORY: arena allocation failure! When you buy more ram, send some to your local protogen too!",
 		true
 	);
@@ -125,7 +125,11 @@ heavy_defrag:
 }
 
 
-ATTR_ALLOC_SIZE(2) Arena_Handle
+ATTR_ALLOC_SIZE (
+
+2
+)
+Arena_Handle
 arena_alloc(Arena *arena, const size_t size)
 {
 	Arena_Handle user_handle = {
@@ -226,7 +230,7 @@ arena_realloc(Arena_Handle *user_handle, size_t size)
 
 
 void *
-handle_lock(Arena_Handle *restrict user_handle)
+		handle_lock(Arena_Handle * restrict user_handle)
 {
 	const Arena *arena = mp_helper_return_base_arena(user_handle);
 

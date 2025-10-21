@@ -5,7 +5,7 @@
 #include "internal_alloc.h"
 #include <stdio.h>
 #include "debug.h"
-#include "helper_functions.h"
+#include "include/helper_functions.h"
 
 static Pool_Header *
 mempool_create_header(const Memory_Pool *restrict pool, const u16 size, const u32 offset)
@@ -20,11 +20,10 @@ mempool_create_header(const Memory_Pool *restrict pool, const u16 size, const u3
 	head->handle_idx = 0;
 	head->prev_block_size = 0;
 
-	logger
 	return head;
 
 mp_head_create_error:
-	printf("error: not enough room in pool for header!\n");
+	sync_alloc_log.to_console("error: not enough room in pool for header!", false);
 	fflush(stdout);
 	return nullptr;
 }
@@ -55,8 +54,8 @@ mempool_find_block(const Arena *restrict arena, const u16 requested_size)
 red_core_loaded:
 	// fix later
 	u32 free_offset = pool->first_free_offset;
-	const Pool_Free_Header *free_header = nullptr;
-	Pool_Header *new_head = nullptr;
+	const Pool_Free_Header *free_header;
+	Pool_Header *new_head;
 
 	do {
 		free_header = (Pool_Free_Header *)((char *)pool->mem + free_offset);

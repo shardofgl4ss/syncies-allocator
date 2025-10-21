@@ -5,7 +5,7 @@
 #ifndef ARENA_ALLOCATOR_ALLOC_LIB_H
 #define ARENA_ALLOCATOR_ALLOC_LIB_H
 
-#include "structs.h"
+#include "../src/include/structs.h"
 
 /**	@brief Creates a dynamic, automatically resizing arena with base size of 16KiB.
  *
@@ -66,7 +66,7 @@ arena_reset(const Arena *restrict arena, int reset_type);
  *	@param user_handle The handle to mark as free.
  */
 void
-arena_free(Arena_Handle *user_handle);
+arena_free(Arena_Handle * user_handle);
 
 /** @brief Reallocates a user's block.
  *	@param user_handle The handle to the block to reallocate.
@@ -86,13 +86,13 @@ arena_realloc(Arena_Handle *user_handle, size_t size);
  *	@note When finished, the handle should be unlocked to allow defragmentation.
  */
 void *
-handle_lock(Arena_Handle *user_handle);
+		handle_lock(Arena_Handle * user_handle);
 
 /**	@brief Unlocks a handle for defragmentation. The vptr can no longer be used.
  *	@param user_handle
  */
 void
-handle_unlock(Arena_Handle *user_handle);
+handle_unlock(Arena_Handle * user_handle);
 
 /** @brief Prints all memory usage and debug information of the entire arena.
  *	@param arena The arena to print debug information on.

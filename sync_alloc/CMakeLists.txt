@@ -1,19 +1,22 @@
 include_directories(include)
+include_directories(src/include)
 
 add_library(sync_alloc SHARED
-			include/defs.h
-			include/structs.h
+			src/include/defs.h
+			src/include/structs.h
 			include/alloc_lib.h
-			include/internal_alloc.h
-			include/helper_functions.h
+			src/include/internal_alloc.h
+			src/include/helper_functions.h
 			src/alloc_lib.c
 			src/internal_alloc.c
-			include/types.h
+			src/include/types.h
 			src/helper_functions.c
 			src/handle.c
-			include/handle.h
+			src/include/handle.h
 			src/debug.c
 			include/debug.h
 			src/alloc_init.c
-			include/alloc_init.h
+			src/include/alloc_init.h
 )
+target_include_directories(sync_alloc PUBLIC include PRIVATE src/include)
+target_compile_options(sync_alloc PRIVATE -Wno-format-nonliteral)

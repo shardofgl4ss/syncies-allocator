@@ -21,8 +21,13 @@ typedef float f32;
 typedef double f64;
 typedef long double f128;
 typedef size_t usize;
-typedef u_int64_t bit64;
-typedef u_int32_t bit32;
+typedef unsigned
+_BitInt(32) bit32;
+typedef unsigned
+_BitInt(64) bit64;
+typedef unsigned
+_BitInt(128) bit128;
+typedef unsigned
+_BitInt(256) bit256;
 typedef usize uintptr;
-
 #endif //ARENA_ALLOCATOR_TYPES_H

@@ -6,33 +6,42 @@
 #define ARENA_ALLOCATOR_DEFS_H
 
 #if !defined(__linux__)
-#	warning warning: sync_allocator is not supported on platforms except for Linux.
+#	warning warning: sync_alloc is not supported on platforms except for Linux.
 #endif
 
 #if !defined(__x86_64__)
-static_assert(0, "sync_allocator requires 64 bit x86 architecture.");
+static_assert(0, "sync_alloc requires 64 bit x86 architecture.");
 #endif
 
 #ifdef __GNUC__
-#	if __GNUC__ >= 11 && !defined(__clang__)
+#	if !defined(__clang__)
 #		define ATTR_MALLOC(f, x) __attribute__((malloc(f, x)))
 #	else
 /*		Clang doesn't have __attribute__((malloc(a, b))) yet :( */
 #		define ATTR_MALLOC(f, x)
 #	endif
-#	define ATTR_ALLOC_SIZE(i) __attribute__((alloc_size(i)))
-#	define ATTR_PUBLIC __attribute__((visibility("default")))
-#	define ATTR_PRIVATE __attribute__((visibility("hidden")))
-#	define ATTR_PURE __attribute__((pure))
-#	define ATTR_CONST __attribute__((const))
-#	define ATTR_INLINE __always_inline
+#	define ATTR_ALLOC_SIZE(i) __attribute__ ((alloc_size (i)))
+#	define ATTR_PUBLIC __attribute__ ((visibility ("default")))
+#	define ATTR_PRIVATE __attribute__ ((visibility ("hidden")))
+#	define ATTR_PROTECTED __attribute__ ((visibility ("protected")))
+#	define ATTR_PURE __attribute__ ((pure))
+#	define ATTR_CONST __attribute__ ((const))
+#	define ATTR_INLINE __attribute__ ((always_inline))
+#	define ATTR_HOT __attribute__ ((hot))
+#	define ATTR_COLD __attribute__ ((cold))
+#	define ATTR_NOTHROW __attribute__ ((nothrow))
 #else
 #	define ATTR_ALLOC_SIZE(i)
 #	define ATTR_PUBLIC
 #	define ATTR_PRIVATE
+#	define ATTR_INTERNAL
+#	define ATTR_PROTECTED
 #	define ATTR_PURE
 #	define ATTR_CONST
 #	define ATTR_INLINE
+#	define ATTR_HOT
+#	define ATTR_COLD
+#	define ATTR_NOTHROW
 #endif
 
 /* Needs to be in multiples of 8.
@@ -42,11 +51,11 @@ static_assert(0, "sync_allocator requires 64 bit x86 architecture.");
  * user to decide.
  */
 #ifndef ALIGNMENT
-#	define	ALIGNMENT	8
+#	define	ALIGNMENT	32
 #endif
 static_assert(
-	(ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= 8) && (ALIGNMENT < 128),
-	"ALIGNMENT must be a power of 8 and less then 128!\n"
+	(ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= 8) && (ALIGNMENT < 33),
+	"ALIGNMENT must be either 8, 16 or 32!\n"
 );
 
 #ifndef ALLOC_DEBUG_LVL

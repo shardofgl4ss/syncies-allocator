@@ -3,8 +3,8 @@
 //
 // ReSharper disable CppDeclaratorNeverUsed
 
-#include "alloc_init.h"
-#include "handle.h"
+#include "include/alloc_init.h"
+#include "include/handle.h"
 #include "helper_functions.h"
 
 static Arena *
