@@ -3,11 +3,11 @@
 //
 // ReSharper disable CppDeclaratorNeverUsed
 
-#include "include/alloc_init.h"
-#include "include/handle.h"
+#include "alloc_init.h"
+#include "handle.h"
 #include "helper_functions.h"
 
-static Arena *
+Arena *
 arena_init()
 {
 	void *raw_pool = mp_helper_map_mem(
@@ -43,7 +43,7 @@ alloc_failure:
 	return nullptr;
 }
 
-static Memory_Pool *
+extern Memory_Pool *
 pool_init(Arena *arena, const u32 size)
 {
 	Memory_Pool *pool = arena != nullptr ? arena->first_mempool : nullptr;
@@ -80,7 +80,7 @@ pool_init(Arena *arena, const u32 size)
 	return new_pool;
 
 mp_internal_error:
-	perror("error: failed to create internal memory pool!\n");
+	sync_alloc_log.to_console(log_stderr, "error: failed to create internal memory pool!\n");
 	fflush(stdout);
 	return nullptr;
 }

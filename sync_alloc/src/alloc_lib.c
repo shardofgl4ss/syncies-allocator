@@ -3,27 +3,32 @@
 //
 
 #include "alloc_lib.h"
-#include <stdio.h>
-#include <string.h>
-#include "include/alloc_init.h"
-#include "include/handle.h"
+#include "alloc_init.h"
+#include "handle.h"
 #include "helper_functions.h"
 #include "internal_alloc.h"
+#include <stdio.h>
+#include <string.h>
 
 
 Arena *
 arena_create()
 {
-	debug_init();
 	Arena *arena = arena_init();
-	if (arena != nullptr) {
-		sync_alloc_log.to_console("Arena creation successful!", 0);
-		return arena;
+	if (arena == nullptr) {
+		goto arena_fail;
 	}
 
+	#if ALLOC_DEBUG_LVL != 0
+	sync_alloc_log.to_console(log_stdout, "Arena creation successful!");
+	#endif
+
+	return arena;
+
+arena_fail:
 	sync_alloc_log.to_console(
-		"ERR_NO_MEMORY: arena allocation failure! When you buy more ram, send some to your local protogen too!",
-		true
+		log_stdout,
+		"ERR_NO_MEMORY: arena allocation failure! When you buy more ram, send some to your local protogen too!"
 	);
 	return nullptr;
 }

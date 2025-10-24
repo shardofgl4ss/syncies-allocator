@@ -21,13 +21,14 @@ typedef float f32;
 typedef double f64;
 typedef long double f128;
 typedef size_t usize;
-typedef unsigned
-_BitInt(32) bit32;
-typedef unsigned
-_BitInt(64) bit64;
-typedef unsigned
-_BitInt(128) bit128;
-typedef unsigned
-_BitInt(256) bit256;
+typedef unsigned _BitInt(8) bit8;
+typedef unsigned _BitInt(16) bit16;
+typedef unsigned _BitInt(32) bit32;
+typedef unsigned _BitInt(64) bit64;
+typedef unsigned _BitInt(128) bit128;
+typedef unsigned _BitInt(256) bit256;
+typedef unsigned _BitInt(512) bit512;
+typedef unsigned _BitInt(1024) bit1024;
 typedef usize uintptr;
+
 #endif //ARENA_ALLOCATOR_TYPES_H

@@ -3,6 +3,7 @@
 //
 
 #include "handle.h"
+#include "debug.h"
 #include "helper_functions.h"
 #include <stdbit.h>
 
@@ -33,7 +34,7 @@ reloop_hdl_tbl:
 
 	hdl.header = head;
 	hdl.addr = (void *)((char *)head + PD_HEAD_SIZE);
-	hdl.handle_matrix_index = arena->table_count * MAX_TABLE_HNDL_COLS + (u32)handle_idx;
+	hdl.handle_matrix_index = arena->table_count * MAX_TABLE_HNDL_COLS + handle_idx;
 	hdl.generation = 1;
 
 	table->handle_entries[handle_idx] = hdl;
@@ -45,15 +46,16 @@ reloop_hdl_tbl:
 Handle_Table *
 mempool_new_handle_table(Arena *restrict arena, Handle_Table *restrict table)
 {
-	if (table == nullptr)
+	if (table == nullptr || arena == nullptr)
 		goto fail_null;
 
 	Handle_Table *new_tbl = mp_helper_map_mem(PD_HDL_MATRIX_SIZE);
 
+	const u32 new_id = ++arena->table_count;
+
 	if (new_tbl == nullptr)
 		goto fail_alloc;
 
-	const u32 new_id = ++arena->table_count;
 	table->next_table = new_tbl;
 
 	new_tbl->entries_bitmap = 0;
@@ -61,7 +63,7 @@ mempool_new_handle_table(Arena *restrict arena, Handle_Table *restrict table)
 
 	return new_tbl;
 fail_alloc:
-	fprintf(stderr, "ERR_NO_MEMORY: failed to allocate table: %hu\n", new_id);
+	sync_alloc_log.to_console(log_stderr, "ERR_NO_MEMORY: failed to allocate table: %hu\n", new_id);
 fail_null:
 	return nullptr;
 }

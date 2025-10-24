@@ -53,6 +53,7 @@ static_assert(0, "sync_alloc requires 64 bit x86 architecture.");
 #ifndef ALIGNMENT
 #	define	ALIGNMENT	32
 #endif
+
 static_assert(
 	(ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= 8) && (ALIGNMENT < 33),
 	"ALIGNMENT must be either 8, 16 or 32!\n"
@@ -61,6 +62,7 @@ static_assert(
 #ifndef ALLOC_DEBUG_LVL
 #	define ALLOC_DEBUG_LVL 2
 #endif
+
 static_assert(
 	ALLOC_DEBUG_LVL >= 0 && ALLOC_DEBUG_LVL <= 2,
 	"ALLOC_DEBUG_LVL must be either 0, 1, or 2!\n"

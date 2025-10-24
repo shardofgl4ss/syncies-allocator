@@ -5,8 +5,8 @@
 #ifndef ARENA_ALLOCATOR_HELPER_FUNCTIONS_H
 #define ARENA_ALLOCATOR_HELPER_FUNCTIONS_H
 
-#include <sys/mman.h>
 #include "structs.h"
+#include <sys/mman.h>
 
 
 /// @brief Destroys a heap allocation.
@@ -41,27 +41,21 @@ mp_helper_add_padding(const usize input) { return (input + (ALIGNMENT - 1)) & (u
 /// @brief Returns the voidptr of a valid header's block.
 /// @param head Header ptr to the header to do ptr arithmetic,
 /// to calculate the location of the block.
-ATTR_INLINE ATTR_PURE
-
-static void *
+ATTR_INLINE ATTR_PURE static void *
 mp_helper_return_block_addr(Pool_Header *head) { return (char *)head + PD_HEAD_SIZE; }
 
 
 /// @brief Calculates a handle's row via division.
 /// @param hdl The handle to get the row from.
 /// @return the handle index's row.
-ATTR_INLINE ATTR_PURE
-
-static u32
+ATTR_INLINE ATTR_PURE static u32
 mp_helper_return_matrix_row(const Arena_Handle *restrict hdl) { return hdl->handle_matrix_index / MAX_TABLE_HNDL_COLS; }
 
 
 /// @brief Calculates a handle's column via modulo.
 /// @param hdl The handle to get the column from.
 /// @return the handle index's column.
-ATTR_INLINE ATTR_PURE
-
-static u32
+ATTR_INLINE ATTR_PURE static u32
 mp_helper_return_matrix_col(const Arena_Handle *restrict hdl) { return hdl->handle_matrix_index % MAX_TABLE_HNDL_COLS; }
 
 
