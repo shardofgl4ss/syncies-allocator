@@ -63,7 +63,9 @@ mempool_new_handle_table(Arena *restrict arena, Handle_Table *restrict table)
 
 	return new_tbl;
 fail_alloc:
+	#if ALLOC_DEBUG_LVL != 0
 	sync_alloc_log.to_console(log_stderr, "ERR_NO_MEMORY: failed to allocate table: %hu\n", new_id);
+	#endif
 fail_null:
 	return nullptr;
 }

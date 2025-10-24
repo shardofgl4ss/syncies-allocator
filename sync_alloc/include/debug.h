@@ -22,12 +22,12 @@
 /// debug_level 1 == only log errors
 /// @details
 /// debug_level 2 == log all
-ATTR_PRIVATE extern void
+[[maybe_unused]] ATTR_PRIVATE extern void
 log_to_console(void (*log_and_stream)(const char *format, va_list va_args), const char *str, ...);
 
 /// @brief Prints all important statistics about the arena at any given time.
 /// @param arena The arena to print statistics.
-ATTR_PROTECTED void
+[[maybe_unused]] ATTR_PROTECTED void
 debug_print_memory_usage(const Arena *restrict arena);
 
 /// @brief Formats a string + variadic list then prints to stdout.
@@ -55,6 +55,6 @@ log_stderr(const char *restrict string, va_list arg_list)
 }
 
 
-ATTR_PRIVATE extern Debug_VTable sync_alloc_log;
+[[maybe_unused]] ATTR_PRIVATE extern Debug_VTable sync_alloc_log;
 
 #endif //ARENA_ALLOCATOR_DEBUG_H

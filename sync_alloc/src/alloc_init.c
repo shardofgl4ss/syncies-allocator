@@ -43,7 +43,7 @@ alloc_failure:
 	return nullptr;
 }
 
-extern Memory_Pool *
+Memory_Pool *
 pool_init(Arena *arena, const u32 size)
 {
 	Memory_Pool *pool = arena != nullptr ? arena->first_mempool : nullptr;
@@ -66,9 +66,9 @@ pool_init(Arena *arena, const u32 size)
 
 	new_pool->pool_size = size;
 	new_pool->pool_offset = 0;
-	new_pool->first_free_offset = 0;
 	new_pool->free_count = 0;
 	new_pool->next_pool = nullptr;
+	new_pool->first_free = nullptr;
 
 	arena->total_mem_size += new_pool->pool_size;
 	Pool_Header *sentinel_header = new_pool->mem + (size - PD_HEAD_SIZE);
@@ -76,6 +76,7 @@ pool_init(Arena *arena, const u32 size)
 	sentinel_header->handle_idx = 0;
 	sentinel_header->size = 0;
 	sentinel_header->prev_block_size = 0;
+	sentinel_header->block_flags |= PH_SENTINEL | PH_FROZEN;
 
 	return new_pool;
 

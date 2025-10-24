@@ -19,7 +19,7 @@
  *	@note The header is set as ALLOCATED by default.
  */
 ATTR_PRIVATE extern Pool_Header *
-mempool_create_header(const Memory_Pool *restrict pool, u16 size, u32 offset);
+mempool_create_header(const Memory_Pool *restrict pool, u32 size, intptr offset);
 
 
 /** @brief Analyzes the header-block chain, making a new header if there is no free one to use.
@@ -31,6 +31,6 @@ mempool_create_header(const Memory_Pool *restrict pool, u16 size, u32 offset);
  *	@warning Will return NULL if a new pool's header could not be made, which should be impossible.
  */
 ATTR_PRIVATE extern Pool_Header *
-mempool_find_block(const Arena *restrict arena, u16 requested_size);
+mempool_find_block(const Arena *restrict arena, u32 requested_size);
 
 #endif //ARENA_ALLOCATOR_INTERNAL_ALLOC_H

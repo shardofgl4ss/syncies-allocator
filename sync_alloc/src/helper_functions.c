@@ -2,9 +2,9 @@
 // Created by SyncShard on 10/15/25.
 //
 
-#include "include/helper_functions.h"
+#include "helper_functions.h"
 
-static Arena *
+Arena *
 mp_helper_return_base_arena(const Arena_Handle *restrict user_handle)
 {
 	if (user_handle == nullptr)
@@ -22,7 +22,7 @@ found_last_head:
 	return (Arena *)((char *)head - (PD_POOL_SIZE + PD_ARENA_SIZE));
 }
 
-static bool
+bool
 mp_helper_handle_generation_checksum(const Arena *restrict arena, const Arena_Handle *restrict hdl)
 {
 	const usize row = mp_helper_return_matrix_row(hdl);
@@ -40,7 +40,7 @@ checksum:
 	return true;
 }
 
-static void
+void
 mp_helper_update_table_generation(const Arena_Handle *restrict hdl)
 {
 	if (hdl == nullptr)

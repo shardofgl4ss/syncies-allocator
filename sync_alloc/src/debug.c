@@ -8,7 +8,6 @@
 #include "unistd.h"
 #include <stdarg.h>
 #include <stdbit.h>
-#include <stdio.h>
 #include <string.h>
 
 void
@@ -23,7 +22,7 @@ log_to_console(void (*log_and_stream)(const char *restrict format, va_list va_ar
 	if (strlen(str) == 0)
 		goto invalid_arg;
 
-	va_list arg_list;
+	va_list arg_list = {};
 	va_start(arg_list);
 
 	log_and_stream(str, arg_list);
@@ -32,10 +31,9 @@ log_to_console(void (*log_and_stream)(const char *restrict format, va_list va_ar
 
 	return;
 invalid_arg:
-	perror("SYNC_ALLOC [ERR] logger received invalid argument!\n");
+	sync_alloc_log.to_console(log_stderr, "logger received invalid argument!\n");
 logger_start_failure:
-	perror("SYNC_ALLOC [ERR] logger failed to log!\n");
-	fflush_unlocked(stdout);
+	sync_alloc_log.to_console(log_stderr, "logger failed to log!\n");
 }
 
 void
@@ -99,8 +97,6 @@ debug_print_memory_usage(const Arena *restrict arena)
 	sync_alloc_log.to_console(log_stdout, "Total memory used: %lu\n", total_pool_mem + reserved_mem);
 	sync_alloc_log.to_console(log_stdout, "Total count of free headers: %lu\n", free_headers);
 	sync_alloc_log.to_console(log_stdout, "Total count of handle tables: %u\n", table_count);
-
-	fflush_unlocked(stdout);
 }
 
 Debug_VTable sync_alloc_log = {

@@ -27,17 +27,17 @@
  *	To clear multiple flags:	@code x &= ~(FLAG1 | FLAG2); @endcode
  */
 enum Header_Flags {
-	FREE        = (1 << 0),		/**< FREE: Empty block. */
-	ALLOCATED   = (1 << 1),		/**< ALLOCATED: free to relocate and defrag. */
-	FROZEN      = (1 << 2),		/**< FROZEN: dictates that the handle has been dereferenced, do NOT touch. */
-	SENTINEL    = (1 << 3),		/**< SENTINEL: Marks the very end of the pool. */
-	PREV_FREE   = (1 << 4),		/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
-	NEXT_FREE   = (1 << 5),		/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
-	HUGE_PAGE   = (1 << 6),		/**< HUGE_PAGE: Determines if this block is in the huge page pool or not. */
-	CHUNK_END   = (1 << 7),		/**< CHUNK_END: Marks the very last header. */
-	ZEROED      = (1 << 8),		/**< ZEROED: for future calloc like impl. */
-	SENSITIVE   = (1 << 9),		/**< SENSITIVE: for heap memory that needs to be zeroed out before reuse. */
-	RECENT_FREE = (1 << 10),	/**< RECENT_FREE: for later hardening, might not use, but hey, still got a ton more bits. */
+	PH_FREE        = (1 << 0),	/**< FREE: Empty block. */
+	PH_ALLOCATED   = (1 << 1),	/**< ALLOCATED: free to relocate and defrag. */
+	PH_FROZEN      = (1 << 2),	/**< FROZEN: dictates that the handle has been dereferenced, do NOT touch. */
+	PH_SENTINEL    = (1 << 3),	/**< SENTINEL: Marks the very end of the pool. */
+	PH_PREV_FREE   = (1 << 4),	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
+	PH_NEXT_FREE   = (1 << 5),	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
+	PH_HUGE_PAGE   = (1 << 6),	/**< HUGE_PAGE: Determines if this block is in the huge page pool or not. */
+	PH_CHUNK_END   = (1 << 7),	/**< CHUNK_END: Marks the very last header. */
+	PH_ZEROED      = (1 << 8),	/**< ZEROED: for future calloc like impl. */
+	PH_SENSITIVE   = (1 << 9),	/**< SENSITIVE: for heap memory that needs to be zeroed out before reuse. */
+	PH_RECENT_FREE = (1 << 10),	/**< RECENT_FREE: for later hardening, might not use, but hey, still got a ton more bits. */
 };
 
 
@@ -72,7 +72,7 @@ typedef struct Pool_Header {
 	u32 handle_idx;			/**< Index to the header's handle.				*/
 	u32 size;				/**< Size of the block in front of the header.	*/
 	u32 prev_block_size;	/**< Size of the previous header block.			*/
-	bit32 block_flag;		/**< Enum bitmap for flags.						*/
+	bit32 block_flags;		/**< Enum bitmap for flags.						*/
 } Pool_Header;
 
 
@@ -89,7 +89,7 @@ typedef struct Pool_Header {
 typedef struct Pool_Free_Header {
 	struct Pool_Free_Header *next_free;
 	u32 size;
-	bit32 block_flag;
+	bit32 block_flags;
 } Pool_Free_Header;
 
 
@@ -131,7 +131,7 @@ typedef struct Pool_Extended_Header {
 	usize block_size;		/**< Size of the block in front of the header.	*/
 	usize prev_block_size;	/**< Size of the previous header block.			*/
 	u32 handle_idx;			/**< Index to the header's handle.				*/
-	bit16 flag;				/**< Flag-enum bitmap of the header.			*/
+	bit32 block_flags;		/**< Flag-enum bitmap of the header.			*/
 } Extended_Header;
 
 
