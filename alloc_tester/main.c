@@ -1,18 +1,23 @@
+#include "sync_alloc.h"
 #include <stdio.h>
 
 int
 main(void)
 {
-	Arena *arena = arena_create();
-	if (!arena) return 0;
+	const int x = arena_create();
+	if (x == 1)
+		return 1;
+	printf("arena created\n");
+	struct Arena_Handle a = arena_alloc(256);
+	printf("allocated 256 bytes to arena\n");
+	char *b = handle_lock(&a);
+	printf("locked handle\n");
 
-	Arena_Handle hdl = arena_alloc(arena, 64);
-	char *test = handle_lock(&hdl);
-	if (!test) return 0;
+	printf("enter something\n");
+	fgets(b, 256, stdin);
+	printf("%s\n", b);
 
-	fgets(test, 64, stdin);
-
-	printf("%s\n", test);
-	arena_debug_print_memory_usage(arena);
-	arena_destroy(arena);
+	handle_unlock(&a);
+	printf("unlocked handle\n");
+	arena_destroy();
 }

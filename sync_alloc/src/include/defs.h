@@ -51,7 +51,7 @@ static_assert(0, "sync_alloc requires 64 bit x86 architecture.");
  * user to decide.
  */
 #ifndef ALIGNMENT
-#	define	ALIGNMENT	32
+#	define	ALIGNMENT 8
 #endif
 
 static_assert(
@@ -59,24 +59,17 @@ static_assert(
 	"ALIGNMENT must be either 8, 16 or 32!\n"
 );
 
-#ifndef ALLOC_DEBUG_LVL
-#	define ALLOC_DEBUG_LVL 2
-#endif
-
-static_assert(
-	ALLOC_DEBUG_LVL >= 0 && ALLOC_DEBUG_LVL <= 2,
-	"ALLOC_DEBUG_LVL must be either 0, 1, or 2!\n"
-);
+#define ALLOC_DEBUG 1
 
 #define KIBIBYTE 1024
 #define MEBIBYTE (1024 * KIBIBYTE)
 #define GIBIBYTE (1024 * MEBIBYTE)
 #define MAX_ALLOC_HUGE_SIZE (GIBIBYTE * 4)		// 4 GiB
-#define MAX_ALLOC_POOL_SIZE (KIBIBYTE * 64)		// 64 KiB
-#define MAX_FIRST_POOL_SIZE (KIBIBYTE * 256)	// 256 KiB
+#define MAX_ALLOC_POOL_SIZE (KIBIBYTE * 128)	// 128 KiB
+#define MAX_FIRST_POOL_SIZE (KIBIBYTE * 128)	// 128 KiB
 #define MAX_POOL_SIZE (GIBIBYTE * 2)			// 2 GiB
 #define MAX_TABLE_HNDL_COLS 64					// 64 B
 #define MAX_ALLOC_SLAB_SIZE 256					// 256 B
-#define MINIMUM_BLOCK_ALLOC 32
+#define MINIMUM_BLOCK_ALLOC 64
 
 #endif //ARENA_ALLOCATOR_DEFS_H

@@ -26,18 +26,18 @@
  *	@details
  *	To clear multiple flags:	@code x &= ~(FLAG1 | FLAG2); @endcode
  */
-enum Header_Flags {
-	PH_FREE        = (1 << 0),	/**< FREE: Empty block. */
-	PH_ALLOCATED   = (1 << 1),	/**< ALLOCATED: free to relocate and defrag. */
-	PH_FROZEN      = (1 << 2),	/**< FROZEN: dictates that the handle has been dereferenced, do NOT touch. */
-	PH_SENTINEL    = (1 << 3),	/**< SENTINEL: Marks the very end of the pool. */
-	PH_PREV_FREE   = (1 << 4),	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
-	PH_NEXT_FREE   = (1 << 5),	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
-	PH_HUGE_PAGE   = (1 << 6),	/**< HUGE_PAGE: Determines if this block is in the huge page pool or not. */
-	PH_CHUNK_END   = (1 << 7),	/**< CHUNK_END: Marks the very last header. */
-	PH_ZEROED      = (1 << 8),	/**< ZEROED: for future calloc like impl. */
-	PH_SENSITIVE   = (1 << 9),	/**< SENSITIVE: for heap memory that needs to be zeroed out before reuse. */
-	PH_RECENT_FREE = (1 << 10),	/**< RECENT_FREE: for later hardening, might not use, but hey, still got a ton more bits. */
+enum Header_Flags : uint {
+	PH_FREE        = 1 << 0,	/**< FREE: Empty block. */
+	PH_ALLOCATED   = 1 << 1,	/**< ALLOCATED: free to relocate and defrag. */
+	PH_FROZEN      = 1 << 2,	/**< FROZEN: dictates that the handle has been dereferenced, do NOT touch. */
+	PH_SENTINEL_F  = 1 << 3,	/**< SENTINEL: Marks the very first or last header in the pool. */
+	PH_SENTINEL_L  = 1 << 4,	/**< SENTINEL: Marks the very first or last header in the pool. */
+	PH_PREV_FREE   = 1 << 5,	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
+	PH_NEXT_FREE   = 1 << 6,	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
+	PH_HUGE_PAGE   = 1 << 7,	/**< HUGE_PAGE: Determines if this block is in the huge page pool or not. */
+	PH_ZEROED      = 1 << 8,	/**< ZEROED: for future calloc like impl. */
+	PH_SENSITIVE   = 1 << 9,	/**< SENSITIVE: for heap memory that needs to be zeroed out before reuse. */
+	PH_RECENT_FREE = 1 << 10,	/**< RECENT_FREE: for later hardening, might not use, but hey, still got a ton more bits. */
 };
 
 
@@ -141,21 +141,23 @@ typedef struct Pool_Extended_Header {
  *	the block address, the handle should be locked through the allocator API (*ptr = handle_lock(handle)),
  *	and then unlocked when done so defragmentation can occur.
  *
+ *	@note if generation is equal to the maximum number for an unsigned 32 bit, it will be treated
+ *	as if it was an invalid handle.
+ *
  *	@warning Each handle is given to the user to their respective block, but it should not be
  *	dereferenced manually by doing handle->addr, instead use the dereference API for safety.
  *
  *	@warning Interacting with the structure manually, beyond passing it between arena functions,
  *	is undefined behavior.
  */
-typedef struct Arena_Handle {
+struct Arena_Handle {
 	void *addr;					/**< address to the user's block. Equivalent to *header + sizeof(header). */
 	Pool_Header *header;		/**< pointer to the sentinel header of the user's block.				  */
 	u32 generation;				/**< generation of pointer, to detect stale handles and use-after-frees.  */
 	u32 handle_matrix_index;	/**< flattened matrix index.											  */
-} Arena_Handle;
+};
 
-
-/** @brief Row of block/header handles, or a table.
+/** @brief Row of block/header handles, or a tablex.
  *
  *	@details Each handle table has a max handle count of 64, allocated in chunks.
  *	Each table is in a linked list to allow easy infinite table allocation.
@@ -164,13 +166,13 @@ typedef struct Arena_Handle {
  *	To get the full size of each table, arithmetic must be done:
  *	size_t total = (TABLE_MAX_COL * PD_HANDLE_SIZE) + PD_TABLE_SIZE;
  *	@details
- *	For the bitmap, 0 == FREE/STALE, 1 == ALLOCATED.
+ *	For the bitmap, 0 == FREE, 1 == ALLOCATED.
  */
 typedef struct Handle_Table {
 	struct Handle_Table *next_table;
-	bit64 entries_bitmap;			/**< Bitmap of used and free handles.					*/
-	u32 table_id;					/**< The index of the current table.					*/
-	Arena_Handle handle_entries[];	/**< array of entries via FAM. index via entries bit.	*/
+	bit64 entries_bitmap;			/**< Bitmap of used and free handles.							*/
+	u32 table_id;					/**< The index of the current table.							*/
+	struct Arena_Handle handle_entries[];	/**< array of entries via FAM. index via entries bit.	*/
 } Handle_Table;
 
 
@@ -184,7 +186,7 @@ typedef struct Arena {
 
 typedef struct Debug_VTable {
 	void
-	(*debug_print_all)(const Arena *restrict arena);
+	(*debug_print_all)();
 	void
 	(*to_console)(void (*log_stream)(const char *restrict string, va_list arg_list), const char *restrict str, ...);
 } Debug_VTable;
@@ -195,7 +197,7 @@ static constexpr u16 PD_ARENA_SIZE = (sizeof(Arena) + (ALIGNMENT - 1)) & (u16)~(
 static constexpr u16 PD_POOL_SIZE = (sizeof(Memory_Pool) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HEAD_SIZE = (sizeof(Pool_Header) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_FREE_PH_SIZE = (sizeof(Pool_Free_Header) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_HANDLE_SIZE = (sizeof(Arena_Handle) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HANDLE_SIZE = (sizeof(struct Arena_Handle) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_TABLE_SIZE = (sizeof(Handle_Table) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HDL_MATRIX_SIZE = ((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE)) + (ALIGNMENT - 1))

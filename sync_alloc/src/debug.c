@@ -10,11 +10,13 @@
 #include <stdbit.h>
 #include <string.h>
 
+extern _Thread_local Arena *restrict arena_thread;
+
 void
 log_to_console(void (*log_and_stream)(const char *restrict format, va_list va_args), const char *restrict str, ...)
 {
 	/* I've heard it may be undefined to compare fptr's to functions, we'll see :3 */
-	if (!ALLOC_DEBUG_LVL || (ALLOC_DEBUG_LVL == 1 && log_and_stream != log_stderr))
+	if (!ALLOC_DEBUG)
 		return;
 
 	if (str == nullptr)
@@ -37,16 +39,16 @@ logger_start_failure:
 }
 
 void
-debug_print_memory_usage(const Arena *restrict arena)
+debug_print_memory_usage()
 {
-	const Memory_Pool *pool = arena->first_mempool;
-	const Pool_Header *header = arena->first_mempool->pool_offset != 0
-	                            ? (Pool_Header *)arena->first_mempool->mem
+	const Memory_Pool *pool = arena_thread->first_mempool;
+	const Pool_Header *header = arena_thread->first_mempool->pool_offset != 0
+	                            ? (Pool_Header *)arena_thread->first_mempool->mem
 	                            : nullptr;
-	const Handle_Table *handle_table = arena->first_hdl_tbl;
+	const Handle_Table *handle_table = arena_thread->first_hdl_tbl;
 
 	u64 pool_count = 0, head_count = 0, free_headers = 0;
-	u64 total_pool_mem = arena->total_mem_size;
+	u64 total_pool_mem = arena_thread->total_mem_size;
 
 	while (pool != nullptr) {
 		total_pool_mem += pool->pool_size;
@@ -61,7 +63,6 @@ debug_print_memory_usage(const Arena *restrict arena)
 
 	sync_alloc_log.to_console(log_stdout, "Total amount of pools: %lu\n", pool_count);
 	sync_alloc_log.to_console(log_stdout, "Pool memory (B): %lu\n", total_pool_mem);
-	fflush_unlocked(stdout);
 
 	const usize header_bytes = head_count != 0 ? head_count * PD_HEAD_SIZE : 0;
 	u64 handle_count = 0;
@@ -78,11 +79,11 @@ debug_print_memory_usage(const Arena *restrict arena)
 		while (handle_table->next_table != nullptr);
 	}
 
-	if (table_count != arena->table_count)
+	if (table_count != arena_thread->table_count)
 		sync_alloc_log.to_console(
 			log_stderr,
-			"SYNC_ALLOC: error: arena's table count: \"%u\" does not match actual table count: \"%u\"!\n",
-			arena->table_count,
+			"arena_thread's table count: \"%u\" does not match actual table count: \"%u\"!\n",
+			arena_thread->table_count,
 			table_count
 		);
 
