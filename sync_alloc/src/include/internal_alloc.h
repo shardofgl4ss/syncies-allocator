@@ -15,11 +15,11 @@
  *	@param offset How many bytes from the base of the pool.
  *	@return a valid block header pointer.
  *
- *	@note Does not update memory offset of the pool.
+ *	@warning Updates offset in the pool if successful.
  *	@note The header is set as ALLOCATED by default.
  */
 ATTR_PRIVATE extern Pool_Header *
-mempool_create_header(const Memory_Pool *restrict pool, u32 size, intptr offset);
+mempool_create_header(Memory_Pool *restrict pool, u32 size, intptr offset);
 
 
 /** @brief Analyzes the header-block chain, making a new header if there is no free one to use.

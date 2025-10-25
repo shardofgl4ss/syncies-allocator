@@ -93,8 +93,8 @@ arena_alloc(Arena *arena, const usize size)
 
 	Memory_Pool *pool = arena->first_mempool;
 
-	// 4 million is the unsigned 32 bit limit, so we can just use 4mb
-	if (MEBIBYTE * 4 < size) // return user handle for now as large page allocation isn't done yet.
+	// 4 million is the unsigned 32 bit limit, so we can just divide it for the limit we want.
+	if ((MEBIBYTE / 4) < size) // return user handle for now as large page allocation isn't done yet.
 		return user_handle;
 
 	const u32 input_bytes = (u32)mp_helper_add_padding(size);
@@ -110,6 +110,7 @@ arena_alloc(Arena *arena, const usize size)
 	do {
 		// TODO make sure mempool_find_block can create its own headers, not just on top of free ones
 		// (ie, when offset is zero)
+		// or do I?
 
 		head = mempool_find_block(arena, input_bytes);
 		if (head == nullptr) {
