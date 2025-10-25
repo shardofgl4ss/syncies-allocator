@@ -24,13 +24,13 @@ mempool_create_header(Memory_Pool *restrict pool, u32 size, intptr offset);
 
 /** @brief Analyzes the header-block chain, making a new header if there is no free one to use.
  *	If there is no space at all in the pool, it will create a new pool for it.
- *	@param arena The given arena to find a block in.
  *	@param requested_size User-requested size, aligned by ALIGNMENT.
  *	@return header of a valid block, if creating one was successful.
  *
  *	@warning Will return NULL if a new pool's header could not be made, which should be impossible.
+ *	It will only happen if all pools cannot fit the allocation.
  */
 ATTR_PRIVATE extern Pool_Header *
-mempool_find_block(const Arena *restrict arena, u32 requested_size);
+mempool_find_block(u32 requested_size);
 
 #endif //ARENA_ALLOCATOR_INTERNAL_ALLOC_H

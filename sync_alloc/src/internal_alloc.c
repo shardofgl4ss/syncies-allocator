@@ -3,62 +3,68 @@
 //
 
 #include "internal_alloc.h"
-#if ALLOC_DEBUG_LVL != 0
+#if defined(ALLOC_DEBUG)
 #include "debug.h"
 #endif
 #include "helper_functions.h"
 
+extern _Thread_local Arena *arena_thread;
 
 Pool_Header *
 mempool_create_header(Memory_Pool *restrict pool, const u32 size, const intptr offset)
 {
-	// NOT make mempool_create_header take in a bitmap argument for flags and fix all the calls
-
 	if ((pool->pool_size - pool->pool_offset) < (mp_helper_add_padding(size) + PD_HEAD_SIZE))
 		goto mp_head_create_error;
 	const u32 chunk_size = size + PD_HEAD_SIZE;
-	auto *head = (Pool_Header *)((char *)pool->mem + offset);
+	Pool_Header *head = (Pool_Header *)(char *)pool->mem + offset;
 
 	head->size = chunk_size;
 	head->handle_idx = 0;
 	head->prev_block_size = 0;
 	head->block_flags |= PH_ALLOCATED;
 
-
 	pool->pool_offset += chunk_size;
 	return head;
 
 mp_head_create_error:
-	#if ALLOC_DEBUG_LVL != 0
+	#if defined(ALLOC_DEBUG)
 	sync_alloc_log.to_console(log_stderr, "error: not enough room in pool for header!\n");
 	#endif
 	return nullptr;
 }
 
 Pool_Header *
-mempool_find_block(const Arena *restrict arena, const u32 requested_size)
+mempool_find_block(const u32 requested_size)
 {	// I hope this works
-	if (arena == nullptr
-	    || arena->first_mempool == nullptr
+	if (arena_thread == nullptr
+	    || arena_thread->first_mempool == nullptr
 	    || requested_size == 0)
 		goto fail_nullptr;
 
-	Memory_Pool *pool = arena->first_mempool;
+	Memory_Pool *pool = arena_thread->first_mempool;
 
 	Pool_Header *new_head;
 
 	// if the quickest options for just checking offset and if it can fit in remaining space
 	// return successfully, then we just use those. Only when pools are full do we walk free lists.
 	// cause free list walking is (probably) slower than just immediately knowing you can put one.
+
 	if (pool->pool_offset == 0) {
 		new_head = mempool_create_header(pool, requested_size, 0);
-		if (new_head != nullptr)
+		if (new_head != nullptr) {
+			new_head->block_flags |= PH_SENTINEL_F;
 			goto found_block;
+		}
 	}
 	if ((pool->pool_offset + requested_size + PD_HEAD_SIZE) < pool->pool_size) {
 		new_head = mempool_create_header(pool, requested_size, pool->pool_offset);
-		if (new_head != nullptr)
+		if (new_head != nullptr) {
+			new_head->block_flags |= PH_SENTINEL_L;
+			Pool_Header *prev = new_head - new_head->size;
+			if (prev != nullptr && prev->block_flags & PH_SENTINEL_L)
+				prev->block_flags &= ~PH_SENTINEL_L;
 			goto found_block;
+		}
 	}
 	// if those checks don't work, now walk the free list
 	while (pool->first_free == nullptr) {
@@ -99,11 +105,11 @@ mempool_find_block(const Arena *restrict arena, const u32 requested_size)
 found_block:
 	return new_head;
 fail_nullptr:
-	#if ALLOC_DEBUG_LVL != 0
+	#if defined(ALLOC_DEBUG)
 	sync_alloc_log.to_console(log_stderr, "mempool_find_block args were null!\n");
 	#endif
 fail_no_pool:
-	#if ALLOC_DEBUG_LVL != 0
+	#if defined(ALLOC_DEBUG)
 	sync_alloc_log.to_console(log_stderr, "new block could not be found!\n");
 	#endif
 	return nullptr;

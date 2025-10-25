@@ -1,13 +1,10 @@
-include_directories(include)
-include_directories(src/include)
-
 add_library(sync_alloc SHARED
 			src/include/defs.h
 			src/include/structs.h
-			include/alloc_lib.h
+			include/sync_alloc.h
 			src/include/internal_alloc.h
 			src/include/helper_functions.h
-			src/alloc_lib.c
+			src/sync_alloc.c
 			src/internal_alloc.c
 			src/include/types.h
 			src/helper_functions.c
