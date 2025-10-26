@@ -14,7 +14,7 @@ _Thread_local Arena *arena_thread = nullptr;
 int
 arena_init()
 {
-	void *raw_pool = mp_helper_map_mem(
+	void *raw_pool = helper_map_mem(
 		((MAX_FIRST_POOL_SIZE + PD_RESERVED_F_SIZE) + (ALIGNMENT - 1)) & (usize)~(ALIGNMENT - 1)
 	);
 
@@ -28,9 +28,9 @@ arena_init()
 	 *	This spoofs a max memory of POOL_SIZE when its actually POOL_SIZE + reserved.				*
 	 *  Alignment is added to the pool in case the user changes it to 16 or 32, it will be aligned.	*/
 
-	Memory_Pool *first_pool = (Memory_Pool *)(char *)raw_pool + PD_ARENA_SIZE;
+	auto *first_pool = (Memory_Pool *)((char *)raw_pool + PD_ARENA_SIZE);
 
-	first_pool->mem = (void *)(char *)raw_pool + PD_POOL_SIZE;
+	first_pool->mem = (void *)((char *)raw_pool + PD_RESERVED_F_SIZE);
 	first_pool->pool_offset = 0;
 	first_pool->pool_size = MAX_FIRST_POOL_SIZE;
 	first_pool->next_pool = nullptr;
@@ -61,7 +61,7 @@ pool_init(const u32 size)
 	while (pool->next_pool != nullptr)
 		pool = pool->next_pool;
 
-	void *raw = mp_helper_map_mem(size + PD_POOL_SIZE);
+	void *raw = helper_map_mem(size + PD_POOL_SIZE);
 
 	if (raw == nullptr)
 		goto mp_internal_error;

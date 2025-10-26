@@ -15,10 +15,12 @@ struct Arena_Handle
 mempool_create_handle_and_entry(Pool_Header *restrict head)
 {
 	if (arena_thread == nullptr) {
+		#if defined(ALLOC_DEBUG)
 		sync_alloc_log.to_console(
 			log_stderr,
-			"PANICKING: arena_thread TLS is nullptr at function: mempool_create_handle_and_entry()!\n"
+			"PANICKING: arena_thread TLS is nullptr at: mempool_create_handle_and_entry()!\n"
 		);
+		#endif
 		arena_panic();
 	}
 	struct Arena_Handle hdl = {};
@@ -29,26 +31,28 @@ mempool_create_handle_and_entry(Pool_Header *restrict head)
 
 	if (head == nullptr || arena_thread->first_mempool == nullptr) {
 		hdl.generation = UINT32_MAX;
+		#if defined(ALLOC_DEBUG)
 		sync_alloc_log.to_console(
 			log_stderr,
 			"invalid parameters received for function: mempool_create_handle_and_entry()\n"
 		);
+		#endif
 		return hdl;
 	}
 
-	bit64 entries_bitcount = (bit64)__builtin_popcountl(table->entries_bitmap);
+	bit64 entries_bitcount = stdc_count_ones(table->entries_bitmap);
 reloop_hdl_tbl:
 	while (entries_bitcount == MAX_TABLE_HNDL_COLS) {
 		if (table->next_table != nullptr) {
 			table = table->next_table;
-			entries_bitcount = (bit64)__builtin_popcountl(table->entries_bitmap);
+			entries_bitcount = stdc_count_ones_ull(table->entries_bitmap);
 		}
 		else {
 			table->next_table = mempool_new_handle_table(table);
 			if (table->next_table != nullptr)
 				return hdl;
 			table = table->next_table;
-			entries_bitcount = (bit64)__builtin_popcountl(table->entries_bitmap);
+			entries_bitcount = stdc_count_ones_ull(table->entries_bitmap);
 		}
 	}
 
@@ -73,14 +77,16 @@ Handle_Table *
 mempool_new_handle_table(Handle_Table *restrict table)
 {
 	if (arena_thread == nullptr) {
+		#if defined(ALLOC_DEBUG)
 		sync_alloc_log.to_console(
 			log_stderr,
 			"PANICKING: arena_thread TLS is nullptr at function: mempool_new_handle_table()!\n"
 		);
+		#endif
 		arena_panic();
 	}
 
-	Handle_Table *new_tbl = mp_helper_map_mem(PD_HDL_MATRIX_SIZE);
+	Handle_Table *new_tbl = helper_map_mem(PD_HDL_MATRIX_SIZE);
 
 	const u32 new_id = ++arena_thread->table_count;
 

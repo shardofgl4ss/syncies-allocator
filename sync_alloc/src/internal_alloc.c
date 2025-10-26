@@ -13,10 +13,10 @@ extern _Thread_local Arena *arena_thread;
 Pool_Header *
 mempool_create_header(Memory_Pool *restrict pool, const u32 size, const intptr offset)
 {
-	if ((pool->pool_size - pool->pool_offset) < (mp_helper_add_padding(size) + PD_HEAD_SIZE))
+	if ((pool->pool_size - pool->pool_offset) < (helper_add_padding(size) + PD_HEAD_SIZE))
 		goto mp_head_create_error;
 	const u32 chunk_size = size + PD_HEAD_SIZE;
-	Pool_Header *head = (Pool_Header *)(char *)pool->mem + offset;
+	auto *head = (Pool_Header *)((char *)pool->mem + offset);
 
 	head->size = chunk_size;
 	head->handle_idx = 0;

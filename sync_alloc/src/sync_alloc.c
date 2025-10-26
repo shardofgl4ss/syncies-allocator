@@ -4,6 +4,7 @@
 
 #include "sync_alloc.h"
 #include "alloc_init.h"
+#include "alloc_utils.h"
 #include "handle.h"
 #include "helper_functions.h"
 #include "internal_alloc.h"
@@ -44,47 +45,13 @@ arena_destroy()
 {
 	// TODO fix arena_destroy()
 
-	if (arena_thread == nullptr)
+	if (arena_thread == nullptr || (arena_thread->pool_count == 0 && arena_thread->table_count == 0))
 		return;
-
-	Memory_Pool *pool = arena_thread->first_mempool;
-	Memory_Pool *pool_tmp = nullptr;
-	Handle_Table *table = arena_thread->first_hdl_tbl;
-	Handle_Table *table_tmp = nullptr;
-
-	for (u32 i = 1; i < arena_thread->table_count; i++) {
-		if (table == nullptr) break;
-		table_tmp = table;
-		table = table->next_table;
-		#if defined(ALLOC_DEBUG)
-		sync_alloc_log.to_console(log_stdout, "destroying table: %u at addr: %p\n", i, table_tmp);
-		#endif
-		mp_helper_destroy(table_tmp, PD_HDL_MATRIX_SIZE);
-	}
-
-	if (arena_thread->first_mempool == nullptr) {
-		#if defined(ALLOC_DEBUG)
-		sync_alloc_log.to_console(log_stdout, "destroying pool: 1 at addr: %p\n", pool_tmp->mem);
-		#endif
-		mp_helper_destroy(pool, PD_RESERVED_F_SIZE);
-		return;
-	}
-
-
-	#if defined(ALLOC_DEBUG)
-	sync_alloc_log.to_console(log_stdout, "destroying pool: 1 at addr: %p\n", pool_tmp->mem);
-	#endif
-	mp_helper_destroy(pool->mem, PD_RESERVED_F_SIZE);
-
-	for (u32 i = 2; i < arena_thread->pool_count; i++) {
-		if (pool == nullptr) break;
-		pool_tmp = pool;
-		pool = pool->next_pool;
-		#if defined(ALLOC_DEBUG)
-		sync_alloc_log.to_console(log_stdout, "destroying pool: %u at addr: %p\n", i, pool_tmp->mem);
-		#endif
-		mp_helper_destroy(pool->mem, PD_POOL_SIZE);
-	}
+	if (arena_thread->table_count > 0)
+		table_destructor();
+	if (arena_thread->pool_count > 0)
+		pool_destructor();
+	arena_thread = nullptr;
 }
 
 
@@ -138,7 +105,7 @@ arena_alloc(const usize size)
 	if (MAX_ALLOC_POOL_SIZE < size) // return user handle for now as large page allocation isn't done yet.
 		return user_handle;
 
-	const u32 input_bytes = (u32)mp_helper_add_padding(size);
+	const u32 input_bytes = (u32)helper_add_padding(size);
 
 	#if defined(ALLOC_DEBUG)
 	if (input_bytes != size) {
@@ -216,34 +183,17 @@ arena_reset(const int reset_type)
 }
 
 
-void
-update_sentinel_flags(Pool_Header *head)
-{
-	if (!(head->block_flags & PH_SENTINEL_F)) {
-		Pool_Header *prev_head = head - head->size;
-		if (prev_head != nullptr && prev_head->block_flags & PH_FREE) {
-			head->block_flags |= PH_PREV_FREE;
-			prev_head->block_flags |= PH_NEXT_FREE;
-		}
-	}
-	if (!(head->block_flags & PH_SENTINEL_L)) {
-		Pool_Header *next_head = head + head->size;
-		if (next_head != nullptr && next_head->block_flags & PH_FREE) {
-			head->block_flags |= PH_NEXT_FREE;
-			next_head->block_flags |= PH_PREV_FREE;
-		}
-	}
-}
-
 
 void
 arena_free(struct Arena_Handle *user_handle)
 {
 	if (arena_thread == nullptr) {
+		#if defined(ALLOC_DEBUG)
 		sync_alloc_log.to_console(
 			log_stderr,
 			"PANICKING: arena_thread TLS is nullptr at function: arena_free()!\n"
 		);
+		#endif
 		arena_panic();
 	}
 
@@ -252,7 +202,7 @@ arena_free(struct Arena_Handle *user_handle)
 		return;
 	}
 
-	if (!mp_helper_handle_generation_checksum(user_handle)) {
+	if (!handle_generation_checksum(user_handle)) {
 		sync_alloc_log.to_console(log_stderr, "stale handle detected!\n");
 		return;
 	}
@@ -292,7 +242,7 @@ arena_realloc(struct Arena_Handle *restrict user_handle, const usize size)
 	// it's probably best to memcpy here
 
 	Pool_Header *old_head = user_handle->header;
-	Pool_Header *new_head = mempool_find_block((u32)mp_helper_add_padding(size));
+	Pool_Header *new_head = mempool_find_block((u32)helper_add_padding(size));
 	if (new_head == nullptr) return 1;
 	user_handle->generation++;
 
@@ -310,7 +260,7 @@ arena_realloc(struct Arena_Handle *restrict user_handle, const usize size)
 	old_head->block_flags &= ~PH_ALLOCATED;
 	old_head->block_flags |= PH_FREE;
 
-	mp_helper_update_table_generation(user_handle);
+	update_table_generation(user_handle);
 	return 0;
 }
 
@@ -318,7 +268,7 @@ arena_realloc(struct Arena_Handle *restrict user_handle, const usize size)
 [[nodiscard]] void *
 handle_lock(struct Arena_Handle *restrict user_handle)
 {
-	if (!mp_helper_handle_generation_checksum(user_handle))
+	if (!handle_generation_checksum(user_handle))
 		goto handle_stale;
 	if (user_handle->header->block_flags & PH_FROZEN)
 		goto handle_stale_lock;
@@ -340,9 +290,9 @@ handle_stale:
 void
 handle_unlock(const struct Arena_Handle *user_handle)
 {
-	mp_helper_update_table_generation(user_handle);
+	update_table_generation(user_handle);
 
-	if (!mp_helper_handle_generation_checksum(user_handle)) {
+	if (!handle_generation_checksum(user_handle)) {
 		sync_alloc_log.to_console(log_stderr, "stale handle detected!\n");
 		return;
 	}

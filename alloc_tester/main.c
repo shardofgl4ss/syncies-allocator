@@ -7,45 +7,55 @@ main(void)
 	const int x = arena_create();
 	if (x == 1)
 		return 1;
-	printf("arena created\n");
-	struct Arena_Handle a = arena_alloc(32);
-	printf("allocated 256 bytes to arena\n");
-	char *b = handle_lock(&a);
-	printf("locked handle\n");
+	constexpr int z = 32;
+	struct Arena_Handle hdl = arena_alloc(z);
+	char *msg = handle_lock(&hdl);
 
-	printf("enter something\n");
-	fgets(b, 32, stdin);
-	printf("%s\n", b);
+	printf("hello world1\n");
+	scanf("%s", msg);
+	printf("%s 1\n", msg);
+	fflush(stdin);
+	fflush(stdout);
 
-	int y = arena_realloc(&a, 64);
-	if (y == 1) {
-		printf("realloc fail!\n");
-	}
+	struct Arena_Handle hdl2 = arena_alloc(z * 2);
+	char *msg2 = handle_lock(&hdl2);
 
-	handle_unlock(&a);
-	printf("unlocked handle\n");
+	printf("hello world2\n");
+	scanf("%s", msg2);
 
-	y = arena_realloc(&a, 64);
-	if (y == 0) {
-		printf("realloc success!\n");
-	}
+	printf("%s 2\n", msg2);
+	printf("%s 1\n", msg);
+	fflush(stdout);
+	//handle_unlock(&hdl2);
 
-	b = handle_lock(&a);
-	printf("locked handle\n");
 
-	printf("%s\n", b);
+	struct Arena_Handle hdl3 = arena_alloc(z * 2);
+	char *msg3 = handle_lock(&hdl3);
 
-	handle_unlock(&a);
-	printf("unlocked handle\n");
+	printf("hello world3\n");
+	scanf("%s", msg3);
 
-	arena_free(&a);
-	printf("freed allocation!\n");
+	printf("%s 3\n", msg3);
+	printf("%s 2\n", msg2);
+	printf("%s 1\n", msg);
+	fflush(stdout);
+	//handle_unlock(&hdl3);
 
-	b = handle_lock(&a);
-	if (b != nullptr)
-		printf("%s\n", b);
-	else
-		printf("null!\n");
+	handle_unlock(&hdl2);
+	arena_free(&hdl2);
+	struct Arena_Handle hdl4 = arena_alloc(z);
+	char *msg4 = handle_lock(&hdl4);
 
+	printf("hello world4\n");
+	scanf("%s", msg4);
+
+	printf("%s 4\n", msg4);
+	printf("%s 3\n", msg3);
+	printf("%s 1\n", msg);
+	fflush(stdout);
+	//handle_unlock(&hdl4);
+
+
+	handle_unlock(&hdl);
 	arena_destroy();
 }
