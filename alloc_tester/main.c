@@ -17,7 +17,23 @@ main(void)
 	fgets(b, 256, stdin);
 	printf("%s\n", b);
 
+	int y = arena_realloc(&a, 512);
+	if (y == 1) {
+		printf("realloc fail!\n");
+	}
+
 	handle_unlock(&a);
 	printf("unlocked handle\n");
+
+	y = arena_realloc(&a, 512);
+	if (y == 0) {
+		printf("realloc success!\n");
+	}
+	b = handle_lock(&a);
+	printf("locked handle\n");
+	printf("%s\n", b);
+	handle_unlock(&a);
+	printf("unlocked handle\n");
+
 	arena_destroy();
 }

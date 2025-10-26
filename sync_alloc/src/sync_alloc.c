@@ -244,6 +244,14 @@ arena_free(struct Arena_Handle *user_handle)
 int
 arena_realloc(struct Arena_Handle *restrict user_handle, const usize size)
 {
+	if (arena_thread == nullptr) {
+		sync_alloc_log.to_console(
+			log_stderr,
+			"PANICKING: arena_thread TLS is nullptr at function: arena_realloc()!\n"
+		);
+		arena_panic();
+	}
+
 	if ((size > UINT32_MAX)
 		|| user_handle == nullptr
 		|| user_handle->header->block_flags & PH_FROZEN)
