@@ -24,14 +24,13 @@ arena_init()
 	arena_thread = raw_pool;
 
 	/*	Add the reserved_space directly to the mapping, then make the starting first_pool->mem		*
-	 *	after the reserved space, then just set mem_size to the FIRST_POOL_ALLOC.					*
+	 *	after the reserved space, then just set pool_size to the FIRST_POOL_ALLOC.					*
 	 *	This spoofs a max memory of POOL_SIZE when its actually POOL_SIZE + reserved.				*
-	 *  Alignment is added to Mempool in case the user changes it to 16 or 32, it will be aligned.	*
-	 *  The alignment however adds some complexity later on.										*/
+	 *  Alignment is added to the pool in case the user changes it to 16 or 32, it will be aligned.	*/
 
 	Memory_Pool *first_pool = (Memory_Pool *)(char *)raw_pool + PD_ARENA_SIZE;
 
-	first_pool->mem = (void *)((char *)raw_pool + PD_POOL_SIZE);
+	first_pool->mem = (void *)(char *)raw_pool + PD_POOL_SIZE;
 	first_pool->pool_offset = 0;
 	first_pool->pool_size = MAX_FIRST_POOL_SIZE;
 	first_pool->next_pool = nullptr;
@@ -41,10 +40,14 @@ arena_init()
 	arena_thread->table_count = 0;
 	arena_thread->first_hdl_tbl = mempool_new_handle_table(arena_thread->first_hdl_tbl);
 	arena_thread->first_mempool = first_pool;
+	arena_thread->pool_count = 1;
 
 	return 0;
 
 alloc_failure:
+	#if defined(ALLOC_DEBUG)
+	sync_alloc_log.to_console(log_stderr, "out of memory!\n");
+	#endif
 	return 1;
 }
 
@@ -76,6 +79,8 @@ pool_init(const u32 size)
 	new_pool->first_free = nullptr;
 
 	arena_thread->total_mem_size += new_pool->pool_size;
+	arena_thread->pool_count++;
+
 	return new_pool;
 
 mp_internal_error:

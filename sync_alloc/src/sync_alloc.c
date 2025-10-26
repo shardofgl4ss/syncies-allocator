@@ -10,10 +10,6 @@
 #include <stdint.h>
 #include <string.h>
 
-/*
- * It's a pain in the ass to work with handles, I might completely drop them for just raw voidptrs.
- */
-
 extern _Thread_local Arena *arena_thread;
 
 int
@@ -46,54 +42,76 @@ arena_thread_fail:
 void
 arena_destroy()
 {
-	if (arena_thread == nullptr || arena_thread->first_mempool == nullptr)
-		return;
-	const Memory_Pool *pool = arena_thread->first_mempool;
+	// TODO fix arena_destroy()
 
-	if (pool->next_pool == nullptr) {
+	if (arena_thread == nullptr)
+		return;
+
+	Memory_Pool *pool = arena_thread->first_mempool;
+	Memory_Pool *pool_tmp = nullptr;
+	Handle_Table *table = arena_thread->first_hdl_tbl;
+	Handle_Table *table_tmp = nullptr;
+
+	for (u32 i = 1; i < arena_thread->table_count; i++) {
+		if (table == nullptr) break;
+		table_tmp = table;
+		table = table->next_table;
 		#if defined(ALLOC_DEBUG)
-		sync_alloc_log.to_console(log_stdout, "destroying pool: %p\n", pool->mem);
+		sync_alloc_log.to_console(log_stdout, "destroying table: %u at addr: %p\n", i, table_tmp);
 		#endif
-		mp_helper_destroy(pool->mem, pool->pool_size + PD_RESERVED_F_SIZE);
+		mp_helper_destroy(table_tmp, PD_HDL_MATRIX_SIZE);
+	}
+
+	if (arena_thread->first_mempool == nullptr) {
+		#if defined(ALLOC_DEBUG)
+		sync_alloc_log.to_console(log_stdout, "destroying pool: 1 at addr: %p\n", pool_tmp->mem);
+		#endif
+		mp_helper_destroy(pool, PD_RESERVED_F_SIZE);
 		return;
 	}
 
-	pool = pool->next_pool;
-	mp_helper_destroy(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_RESERVED_F_SIZE);
-	#if defined(ALLOC_DEBUG)
-	sync_alloc_log.to_console(log_stdout, "destroying pool: %p\n", pool->mem);
-	#endif
 
-	while (pool->next_pool != nullptr) {
+	#if defined(ALLOC_DEBUG)
+	sync_alloc_log.to_console(log_stdout, "destroying pool: 1 at addr: %p\n", pool_tmp->mem);
+	#endif
+	mp_helper_destroy(pool->mem, PD_RESERVED_F_SIZE);
+
+	for (u32 i = 2; i < arena_thread->pool_count; i++) {
+		if (pool == nullptr) break;
+		pool_tmp = pool;
 		pool = pool->next_pool;
 		#if defined(ALLOC_DEBUG)
-		sync_alloc_log.to_console(log_stdout, "destroying pool: %p\n", pool->mem);
+		sync_alloc_log.to_console(log_stdout, "destroying pool: %u at addr: %p\n", i, pool_tmp->mem);
 		#endif
-		mp_helper_destroy(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_POOL_SIZE);
+		mp_helper_destroy(pool->mem, PD_POOL_SIZE);
 	}
-
-	#if defined(ALLOC_DEBUG)
-	sync_alloc_log.to_console(log_stdout, "destroying arena_thread: %p!\n", arena_thread);
-	#endif
-	mp_helper_destroy(pool->mem, pool->pool_size + PD_POOL_SIZE);
 }
 
 
-// figure out defragment later
+// Not implemented
 //void
-//arena_defragment(const Arena *const restrict arena, const bool l_defrag)
+//arena_defragment(const bool light_flag)
 //{
-//	Memory_Pool *restrict pool = (arena) ? arena->first_mempool : nullptr;
-//	Pool_Header *restrict head = (pool->pool_offset != 0) ? pool->mem : nullptr;
+//	if (arena_thread == nullptr) {
+//		sync_alloc_log.to_console(
+//			log_stderr,
+//			"PANICKING: arena_thread TLS is nullptr at function: arena_defragment()!\n"
+//		);
+//		arena_panic();
+//	}
 //
-//	if (pool == nullptr
-//	    || head == nullptr
-//	    || pool->pool_size == 0
-//	    || (
-//		    pool->pool_offset == 0
-//		    && pool->next_pool == nullptr
-//	    )
-//	) { return; }
+//	if (arena_thread->first_mempool == nullptr
+//	    || arena_thread->first_mempool->pool_offset == 0)
+//		return;
+//
+//	if (!light_flag)
+//		goto full_defrag;
+//
+//
+//	return;
+//full_defrag:
+//
+//	return;
 //}
 
 
@@ -198,7 +216,8 @@ arena_reset(const int reset_type)
 }
 
 
-void update_sentinel_flags(Pool_Header *head)
+void
+update_sentinel_flags(Pool_Header *head)
 {
 	if (!(head->block_flags & PH_SENTINEL_F)) {
 		Pool_Header *prev_head = head - head->size;
@@ -220,6 +239,19 @@ void update_sentinel_flags(Pool_Header *head)
 void
 arena_free(struct Arena_Handle *user_handle)
 {
+	if (arena_thread == nullptr) {
+		sync_alloc_log.to_console(
+			log_stderr,
+			"PANICKING: arena_thread TLS is nullptr at function: arena_free()!\n"
+		);
+		arena_panic();
+	}
+
+	if (user_handle->header->block_flags & PH_FROZEN) {
+		sync_alloc_log.to_console(log_stderr, "frozen handle detected!\n");
+		return;
+	}
+
 	if (!mp_helper_handle_generation_checksum(user_handle)) {
 		sync_alloc_log.to_console(log_stderr, "stale handle detected!\n");
 		return;
@@ -253,8 +285,8 @@ arena_realloc(struct Arena_Handle *restrict user_handle, const usize size)
 	}
 
 	if ((size > UINT32_MAX)
-		|| user_handle == nullptr
-		|| user_handle->header->block_flags & PH_FROZEN)
+	    || user_handle == nullptr
+	    || user_handle->header->block_flags & PH_FROZEN)
 		return 1; // handle huge page reallocs later
 
 	// it's probably best to memcpy here
@@ -293,7 +325,7 @@ handle_lock(struct Arena_Handle *restrict user_handle)
 
 	user_handle->generation++;
 	user_handle->header->block_flags |= PH_FROZEN;
-	user_handle->addr = (void *)((char*)user_handle->header + PD_HEAD_SIZE);
+	user_handle->addr = (void *)((char *)user_handle->header + PD_HEAD_SIZE);
 
 	return user_handle->addr;
 

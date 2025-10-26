@@ -40,7 +40,6 @@ enum Header_Flags : uint {
 	PH_RECENT_FREE = 1 << 10,	/**< RECENT_FREE: for later hardening, might not use, but hey, still got a ton more bits. */
 };
 
-
 /** @brief Memory pool block header, not for huge pools or slabs, but right in the middle.
  *
  *	@details
@@ -170,18 +169,23 @@ struct Arena_Handle {
  */
 typedef struct Handle_Table {
 	struct Handle_Table *next_table;
-	bit64 entries_bitmap;			/**< Bitmap of used and free handles.							*/
-	u32 table_id;					/**< The index of the current table.							*/
+	bit64 entries_bitmap;					/**< Bitmap of used and free handles					*/
+	u32 table_id;							/**< The index of the current table.					*/
 	struct Arena_Handle handle_entries[];	/**< array of entries via FAM. index via entries bit.	*/
 } Handle_Table;
 
 
+/** @brief Super-struct-ure for the entire arena. Should be placed in thread-local storage.
+ *
+ *	@details Each arena is put in its own TLS to allow multithreading. TODO expand later. I'm tired.
+ */
 typedef struct Arena {
-	Handle_Table *first_hdl_tbl;	/**< Pointer of LL of tables, matrix.		*/
+	Handle_Table *first_hdl_tbl;	/**< Pointer to LL of tables, matrix.		*/
 	Memory_Pool *first_mempool;		/**< Pointer to the first memory pool.		*/
 	Memory_Pool *first_hp_pool;		/**< Pointer to the first huge page pool.	*/
 	usize total_mem_size;			/**< The total size of all pools together.	*/
 	u32 table_count;				/**< How many tables there are.				*/
+	u32 pool_count;					/**< How many memory pools there are.		*/
 } Arena;
 
 typedef struct Debug_VTable {
@@ -189,6 +193,7 @@ typedef struct Debug_VTable {
 	(*debug_print_all)();
 	void
 	(*to_console)(void (*log_stream)(const char *restrict string, va_list arg_list), const char *restrict str, ...);
+	// i love this fptr, it traumatizes my programmer friends. I am NOT changing it.
 } Debug_VTable;
 
 /* It is very important to have everything aligned in memory, so we should go out of our way to make it that way.	   *

@@ -19,19 +19,18 @@ arena_create();
 ATTR_PUBLIC extern void
 arena_destroy();
 
-// reminder: implement defragmentation
-/*	@ brief Clears up defragmentation of the memory pool where there is any.
+
+/**	@brief Clears up defragmentation of the memory pool where there is any.
  *
- *	@ details Indexes through the memory pool from first to last,
+ *	@details Indexes through the memory pool from first to last,
  *	if there are two adjacent blocks that are free, links the first free
  *	to the next non-free, then updates head->chunk_size of the first free.
  *
- *	@ param l_defrag The light defrag option. If true, only a light defragmentation
+ *	@param light_flag The light defrag option. If true, only a light defragmentation
  *	will occur. If false, heavy defragmentation will occur.
- *
-ATTR_PUBLIC extern int
-arena_defragment(bool l_defrag);
-*/
+ */
+ATTR_PUBLIC extern void
+arena_defragment(bool light_flag);
 
 
 /** @brief Allocates a new block of memory.
@@ -42,7 +41,7 @@ arena_defragment(bool l_defrag);
  *	@note All size is rounded up to the nearest value of ALIGNMENT, and a minimum valid size is 8 bytes.
  *	@warning If the arena is NULL at this point, the library will terminate.
  */
-ATTR_PUBLIC [[nodiscard]] extern struct Arena_Handle
+[[nodiscard]] ATTR_PUBLIC extern struct Arena_Handle
 arena_alloc(usize size);
 
 
@@ -83,7 +82,7 @@ arena_realloc(struct Arena_Handle *user_handle, usize size);
  *	@return vptr to the block of user memory.
  *	@note When finished, the handle should be unlocked to allow defragmentation.
  */
-ATTR_PUBLIC [[nodiscard]] extern void *
+[[nodiscard]] ATTR_PUBLIC extern void *
 handle_lock(struct Arena_Handle *user_handle);
 
 
