@@ -13,38 +13,10 @@
 
 extern _Thread_local Arena *arena_thread;
 
-int
-arena_create()
-{
-	arena_init();
-	if (arena_thread == nullptr)
-		goto arena_thread_fail;
-
-	#if defined(ALLOC_DEBUG)
-	sync_alloc_log.to_console(log_stdout, "Arena creation successful! addr: %p\n");
-	#endif
-
-	return 0;
-
-arena_thread_fail:
-	#if defined(ALLOC_DEBUG)
-	sync_alloc_log.to_console(
-		log_stdout,
-		"arena allocation failure! When you buy more ram, send some to your local protogen too!\n"
-	);
-	#endif
-	// We dont panic here because other threads may have been successful and still have valid memory.
-	// I might write a global thread registry later to keep track of them all,
-	// and make panic unwinding for the heap possible.
-	return 1;
-}
-
 
 void
-arena_destroy()
+syn_free_all()
 {
-	// TODO fix arena_destroy()
-
 	if (arena_thread == nullptr || (arena_thread->pool_count == 0 && arena_thread->table_count == 0))
 		return;
 	if (arena_thread->table_count > 0)
@@ -55,42 +27,12 @@ arena_destroy()
 }
 
 
-// Not implemented
-//void
-//arena_defragment(const bool light_flag)
-//{
-//	if (arena_thread == nullptr) {
-//		sync_alloc_log.to_console(
-//			log_stderr,
-//			"PANICKING: arena_thread TLS is nullptr at function: arena_defragment()!\n"
-//		);
-//		arena_panic();
-//	}
-//
-//	if (arena_thread->first_mempool == nullptr
-//	    || arena_thread->first_mempool->pool_offset == 0)
-//		return;
-//
-//	if (!light_flag)
-//		goto full_defrag;
-//
-//
-//	return;
-//full_defrag:
-//
-//	return;
-//}
-
-
 [[nodiscard]] struct Arena_Handle
-arena_alloc(const usize size)
+syn_alloc(const usize size)
 {
 	if (arena_thread == nullptr) {
-		sync_alloc_log.to_console(
-			log_stderr,
-			"PANICKING: arena_thread TLS is nullptr at function: arena_alloc()!\n"
-		);
-		arena_panic();
+		if (arena_init() != 0)
+			goto arena_context_lost;
 	}
 
 	struct Arena_Handle user_handle = {
@@ -111,7 +53,7 @@ arena_alloc(const usize size)
 	if (input_bytes != size) {
 		sync_alloc_log.to_console(
 			log_stdout,
-			"debug: padding has been added. input: %lu, padded: %lu\n",
+			"alignment padding has been added. input: %lu, padded: %lu\n",
 			size,
 			input_bytes);
 	}
@@ -119,13 +61,13 @@ arena_alloc(const usize size)
 
 	Pool_Header *head;
 	do {
+		if (corrupt_pool_check(pool)) goto alloc_corrupt;
 		head = mempool_find_block(input_bytes);
 		if (head == nullptr) {
 			if (pool->next_pool != nullptr) {
-				while (pool->next_pool != nullptr)
-					pool = pool->next_pool;
+				pool = pool->next_pool;
+				continue;
 			}
-
 			Memory_Pool *new_pool = pool_init(pool->pool_size * 2);
 			if (new_pool == nullptr)
 				goto memory_error;
@@ -133,7 +75,6 @@ arena_alloc(const usize size)
 		}
 	}
 	while (head == nullptr);
-
 	user_handle = mempool_create_handle_and_entry(head);
 	return user_handle;
 
@@ -143,69 +84,65 @@ memory_error:
 	#endif
 	user_handle.generation = UINT32_MAX;
 	return user_handle;
+
+arena_context_lost:
+	syn_panic("arena_thread was nullptr at: arena_alloc()!\n");
+alloc_corrupt:
+	syn_panic("allocator structure <Arena> or <Memory_Pool> corruption detected!\n");
 }
 
 
 void
-arena_reset(const int reset_type)
+syn_reset()
 {
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+	if (arena_thread == nullptr) goto arena_context_lost;
+	#endif
+
 	Memory_Pool *restrict pool = arena_thread->first_mempool;
+	pool->pool_offset = 0;
+	if (arena_thread->pool_count == 1) return;
 
-	switch (reset_type) {
-		default:
-		case 1:
-			pool->pool_offset = 0;
+	pool = pool->next_pool;
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+	if (corrupt_pool_check(pool)) goto alloc_corrupt;
+	#endif
+
+	for (u32 i = 2; i < arena_thread->pool_count; i++) {
+		if (pool->next_pool == nullptr) {
+			helper_destroy(pool->mem, pool->pool_size + PD_POOL_SIZE);
 			return;
-		case 0:
-			pool->pool_offset = 0;
-			if (!pool->next_pool)
-				return;
+		}
+		pool = pool->next_pool;
 
-			while (pool->next_pool) {
-				pool = pool->next_pool;
-				munmap(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_POOL_SIZE);
-				pool->prev_pool->next_pool = nullptr;
-				pool->prev_pool = nullptr;
-			};
-			break;
-		case 2:
-			if (!pool->next_pool)
-				return;
+		#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+		if (corrupt_pool_check(pool)) goto alloc_corrupt;
+		#endif
 
-			while (pool->next_pool) {
-				pool = pool->next_pool;
-				munmap(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_POOL_SIZE);
-				pool->prev_pool->next_pool = nullptr;
-				pool->prev_pool = nullptr;
-			};
-			break;
+		munmap(pool->prev_pool->mem, pool->prev_pool->pool_size + PD_POOL_SIZE);
+		pool->prev_pool->next_pool = nullptr;
+		pool->prev_pool = nullptr;
 	}
+
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+arena_context_lost:
+	syn_panic("arena_thread was nullptr at: syn_reset()!\n");
+alloc_corrupt:
+	syn_panic("allocator structure <Arena> or <Memory_Pool> corruption detected!\n");
+	#endif
 }
 
 
-
 void
-arena_free(struct Arena_Handle *user_handle)
+syn_free(struct Arena_Handle *restrict user_handle)
 {
-	if (arena_thread == nullptr) {
-		#if defined(ALLOC_DEBUG)
-		sync_alloc_log.to_console(
-			log_stderr,
-			"PANICKING: arena_thread TLS is nullptr at function: arena_free()!\n"
-		);
-		#endif
-		arena_panic();
-	}
-
-	if (user_handle->header->block_flags & PH_FROZEN) {
-		sync_alloc_log.to_console(log_stderr, "frozen handle detected!\n");
-		return;
-	}
-
-	if (!handle_generation_checksum(user_handle)) {
-		sync_alloc_log.to_console(log_stderr, "stale handle detected!\n");
-		return;
-	}
+	// the cost of safety: everything has ifs :(
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+	if (arena_thread == nullptr) goto arena_context_lost;
+	if (corrupt_header_check(user_handle->header)) goto corrupt_head;
+	if (!handle_generation_checksum(user_handle)) goto nocrash_stale;
+	if (user_handle->header->block_flags & PH_FROZEN) goto nocrash_frozen;
+	#endif
 
 	Pool_Header *head = user_handle->header;
 	head->block_flags &= ~PH_ALLOCATED;
@@ -218,21 +155,32 @@ arena_free(struct Arena_Handle *user_handle)
 	user_handle->addr = nullptr;
 
 	update_sentinel_flags(head);
+	return;
 
-	//arena_defragment(0);
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+nocrash_frozen:
+	sync_alloc_log.to_console(log_stderr, "free attempt on allocation in use!\n");
+	return;
+nocrash_stale:
+	sync_alloc_log.to_console(log_stderr, "double free detected!\n");
+	return;
+arena_context_lost:
+	syn_panic("arena_thread was nullptr at syn_free()!\n");
+corrupt_head:
+	syn_panic("allocator structure <Pool_Header> corruption detected!\n");
+	#endif
 }
 
 
 int
-arena_realloc(struct Arena_Handle *restrict user_handle, const usize size)
+syn_realloc(struct Arena_Handle *restrict user_handle, const usize size)
 {
-	if (arena_thread == nullptr) {
-		sync_alloc_log.to_console(
-			log_stderr,
-			"PANICKING: arena_thread TLS is nullptr at function: arena_realloc()!\n"
-		);
-		arena_panic();
-	}
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+	if (arena_thread == nullptr) goto arena_context_lost;
+	if (corrupt_header_check(user_handle->header)) goto corrupt_head;
+	if (!handle_generation_checksum(user_handle)) goto nocrash_stale;
+	if (user_handle->header->block_flags & PH_FROZEN) goto nocrash_frozen;
+	#endif
 
 	if ((size > UINT32_MAX)
 	    || user_handle == nullptr
@@ -262,16 +210,31 @@ arena_realloc(struct Arena_Handle *restrict user_handle, const usize size)
 
 	update_table_generation(user_handle);
 	return 0;
+
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+nocrash_frozen:
+	sync_alloc_log.to_console(log_stderr, "realloc attempt on allocation in use!\n");
+	return 1;
+nocrash_stale:
+	sync_alloc_log.to_console(log_stderr, "realloc on freed allocation!\n");
+	return 1;
+arena_context_lost:
+	syn_panic("arena_thread was nullptr at syn_realloc()!\n");
+corrupt_head:
+	syn_panic("allocator structure <Pool_Header> corruption detected!\n");
+	#endif
 }
 
 
 [[nodiscard]] void *
-handle_lock(struct Arena_Handle *restrict user_handle)
+syn_freeze(struct Arena_Handle *restrict user_handle)
 {
-	if (!handle_generation_checksum(user_handle))
-		goto handle_stale;
-	if (user_handle->header->block_flags & PH_FROZEN)
-		goto handle_stale_lock;
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+	if (arena_thread == nullptr) goto arena_context_lost;
+	if (corrupt_header_check(user_handle->header)) goto corrupt_head;
+	if (!handle_generation_checksum(user_handle)) goto nocrash_stale;
+	if (user_handle->header->block_flags & PH_FROZEN) goto nocrash_frozen;
+	#endif
 
 	user_handle->generation++;
 	user_handle->header->block_flags |= PH_FROZEN;
@@ -279,24 +242,45 @@ handle_lock(struct Arena_Handle *restrict user_handle)
 
 	return user_handle->addr;
 
-handle_stale_lock:
-	sync_alloc_log.to_console(log_stderr, "handle already locked!\n");
-handle_stale:
-	sync_alloc_log.to_console(log_stderr, "stale handle detected!\n");
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+nocrash_frozen:
+	sync_alloc_log.to_console(log_stderr, "realloc attempt on allocation in use!\n");
 	return nullptr;
+nocrash_stale:
+	sync_alloc_log.to_console(log_stderr, "realloc on freed allocation!\n");
+	return nullptr;
+arena_context_lost:
+	syn_panic("arena_thread was nullptr at syn_freeze()!\n");
+corrupt_head:
+	syn_panic("allocator structure <Pool_Header> corruption detected!\n");
+	#endif
 }
 
 
 void
-handle_unlock(const struct Arena_Handle *user_handle)
+syn_thaw(const struct Arena_Handle *user_handle)
 {
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+	if (arena_thread == nullptr) goto arena_context_lost;
+	if (corrupt_header_check(user_handle->header)) goto corrupt_head;
+	if (!(user_handle->header->block_flags & PH_FROZEN)) goto nocrash_no_frozen;
+	#endif
+
 	update_table_generation(user_handle);
-
-	if (!handle_generation_checksum(user_handle)) {
-		sync_alloc_log.to_console(log_stderr, "stale handle detected!\n");
-		return;
-	}
+	if (!handle_generation_checksum(user_handle)) goto nocrash_stale;
 	user_handle->header->block_flags &= ~PH_FROZEN;
-
 	//arena_defragment(arena, true);
+
+	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
+nocrash_no_frozen:
+	sync_alloc_log.to_console(log_stderr, "thaw attempt on already thawed handle!\n");
+	return;
+nocrash_stale:
+	sync_alloc_log.to_console(log_stderr, "thaw attempt on stale handle!\n");
+	return;
+arena_context_lost:
+	syn_panic("arena_thread was nullptr at syn_thaw()!\n");
+corrupt_head:
+	syn_panic("allocator structure <Pool_Header> corruption detected!\n");
+	#endif
 }

@@ -26,7 +26,10 @@ arena_init();
 ATTR_PRIVATE extern Memory_Pool *
 pool_init(u32 size);
 
+/// @brief Terminates the program upon a catastrophic error,
+/// such as the core context of the allocator being NULL/nullptr.
+/// @param panic_msg The emergency message to print.
 ATTR_PRIVATE _Noreturn extern void
-arena_panic();
+syn_panic(const char *panic_msg);
 
 #endif //ARENA_ALLOCATOR_ALLOC_INIT_H

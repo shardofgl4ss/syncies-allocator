@@ -8,6 +8,34 @@
 
 extern _Thread_local Arena *arena_thread;
 
+
+// Not implemented
+//void
+//defragment_pool(const bool light_flag)
+//{
+//	if (arena_thread == nullptr) {
+//		sync_alloc_log.to_console(
+//			log_stderr,
+//			"PANICKING: arena_thread TLS is nullptr at function: arena_defragment()!\n"
+//		);
+//		arena_panic();
+//	}
+//
+//	if (arena_thread->first_mempool == nullptr
+//	    || arena_thread->first_mempool->pool_offset == 0)
+//		return;
+//
+//	if (!light_flag)
+//		goto full_defrag;
+//
+//
+//	return;
+//full_defrag:
+//
+//	return;
+//}
+
+
 void
 update_sentinel_flags(Pool_Header *head)
 {
@@ -88,10 +116,9 @@ table_destructor()
 void
 pool_destructor()
 {
-	Memory_Pool *pool = arena_thread->first_mempool;
+	const Memory_Pool *pool = arena_thread->first_mempool;
 
 	if (arena_thread->pool_count == 1) {
-
 		#if defined(ALLOC_DEBUG)
 		sync_alloc_log.to_console(log_stdout, "destroying pool: 1 at addr: %p\n", pool->mem);
 		#endif
@@ -110,7 +137,6 @@ pool_destructor()
 
 	for (u32 i = 2; i < arena_thread->pool_count; i++) {
 		if (pool->next_pool == nullptr) {
-
 			#if defined(ALLOC_DEBUG)
 			sync_alloc_log.to_console(log_stdout, "destroying pool: %u at addr: %p\n", i, pool->prev_pool->mem);
 			#endif

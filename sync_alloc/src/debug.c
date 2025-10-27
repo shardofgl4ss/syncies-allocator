@@ -16,8 +16,6 @@ void
 log_to_console(void (*log_and_stream)(const char *restrict format, va_list va_args), const char *restrict str, ...)
 {
 	/* I've heard it may be undefined to compare fptr's to functions, we'll see :3 */
-	if (!ALLOC_DEBUG)
-		return;
 
 	if (str == nullptr)
 		goto logger_start_failure;
