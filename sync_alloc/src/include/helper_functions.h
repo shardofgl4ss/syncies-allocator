@@ -18,7 +18,7 @@ helper_destroy(void *restrict mem, const usize bytes) { return munmap(mem, bytes
 /// @brief Allocates memory via mmap(). Each map is marked NORESERVE and ANONYMOUS.
 /// @param bytes How many bytes to allocate.
 /// @return voidptr to the heap region.
-[[maybe_unused,nodiscard]] ATTR_MALLOC(mp_helper_destroy, 1) ATTR_ALLOC_SIZE(1) static void *
+[[maybe_unused,nodiscard]] ATTR_MALLOC(helper_destroy, 1) ATTR_ALLOC_SIZE(1) static void *
 helper_map_mem(const usize bytes)
 {
 	return mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
@@ -26,7 +26,7 @@ helper_map_mem(const usize bytes)
 
 /// @brief Pads a value by alignment value of ALIGNMENT defined elsewhere.
 /// @param input The value to align by 8.
-/// @return aligned-by-8 value.
+/// @return aligned-by-ALIGNMENT value.
 [[maybe_unused]] ATTR_INLINE ATTR_CONST inline static usize
 helper_add_padding(const usize input) { return (input + (ALIGNMENT - 1)) & (usize)~(ALIGNMENT - 1); }
 

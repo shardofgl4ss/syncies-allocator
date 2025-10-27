@@ -37,7 +37,8 @@ enum Header_Flags : uint {
 	PH_HUGE_PAGE   = 1 << 7,	/**< HUGE_PAGE: Determines if this block is in the huge page pool or not. */
 	PH_ZEROED      = 1 << 8,	/**< ZEROED: for future calloc like impl. */
 	PH_SENSITIVE   = 1 << 9,	/**< SENSITIVE: for heap memory that needs to be zeroed out before reuse. */
-	PH_RECENT_FREE = 1 << 10,	/**< RECENT_FREE: for later hardening, might not use, but hey, still got a ton more bits. */
+	PH_RECENT_FREE = 1 << 10,	/**< RECENT_FREE: for later hardening, might not use. */
+	PH_RAW         = 1 << 11,	/**< RAW_TYPE: No handle is associated with this header, only a raw void ptr. */
 };
 
 /** @brief Memory pool block header, not for huge pools or slabs, but right in the middle.
@@ -198,6 +199,9 @@ typedef struct Debug_VTable {
 
 /* It is very important to have everything aligned in memory, so we should go out of our way to make it that way.	   *
  * PD here stands for PADDED, F for FIRST as the first arena's pool is a special case. PH also stands for Pool Header. */
+
+
+static constexpr u64 HEAP_DEADZONE = 0xDEADDEADDEADDEADULL;
 static constexpr u16 PD_ARENA_SIZE = (sizeof(Arena) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_POOL_SIZE = (sizeof(Memory_Pool) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HEAD_SIZE = (sizeof(Pool_Header) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);

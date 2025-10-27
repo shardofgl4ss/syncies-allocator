@@ -14,20 +14,12 @@ extern _Thread_local Arena *arena_thread;
 struct Arena_Handle
 mempool_create_handle_and_entry(Pool_Header *restrict head)
 {
-	if (arena_thread == nullptr) {
-		#if defined(ALLOC_DEBUG)
-		sync_alloc_log.to_console(
-			log_stderr,
-			"PANICKING: arena_thread TLS is nullptr at: mempool_create_handle_and_entry()!\n"
-		);
-		#endif
-		arena_panic();
-	}
+	if (arena_thread == nullptr)
+		syn_panic("arena_thread was nullptr at: mempool_create_handle_and_entry()!\n");
 	struct Arena_Handle hdl = {};
-	if (arena_thread->first_hdl_tbl == nullptr)
-		mempool_new_handle_table(nullptr);
-
-	Handle_Table *table = arena_thread->first_hdl_tbl;
+	Handle_Table *table = (arena_thread->first_hdl_tbl != nullptr)
+	                      ? arena_thread->first_hdl_tbl
+	                      : mempool_new_handle_table(nullptr);
 
 	if (head == nullptr || arena_thread->first_mempool == nullptr) {
 		hdl.generation = UINT32_MAX;
@@ -76,15 +68,8 @@ reloop_hdl_tbl:
 Handle_Table *
 mempool_new_handle_table(Handle_Table *restrict table)
 {
-	if (arena_thread == nullptr) {
-		#if defined(ALLOC_DEBUG)
-		sync_alloc_log.to_console(
-			log_stderr,
-			"PANICKING: arena_thread TLS is nullptr at function: mempool_new_handle_table()!\n"
-		);
-		#endif
-		arena_panic();
-	}
+	if (arena_thread == nullptr)
+		syn_panic("arena_thread TLS is nullptr at function: mempool_new_handle_table()!\n");
 
 	Handle_Table *new_tbl = helper_map_mem(PD_HDL_MATRIX_SIZE);
 

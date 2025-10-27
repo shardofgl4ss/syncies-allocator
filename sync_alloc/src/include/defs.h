@@ -44,22 +44,24 @@ static_assert(0, "sync_alloc requires 64 bit x86 architecture.");
 #	define ATTR_NOTHROW
 #endif
 
-/* Needs to be in multiples of 8.
- * An alignment of 16 however, is optimal for
- * SIMD instructions, while 32 is optimal for
- * AVX512 instructions. So it is left to the
- * user to decide.
+/* Extremely recommended to be in multiples of 8.
+ *
+ * 16-byte alignment is optimal for SSE instructions.
+ * 32-byte alignment is optimal for AVX instructions.
+ * 64-byte alignment is optimal for AVX512 instructions.
  */
 #ifndef ALIGNMENT
 #	define	ALIGNMENT 8
 #endif
 
 static_assert(
-	(ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= 8) && (ALIGNMENT < 33),
-	"ALIGNMENT must be either 8, 16 or 32!\n"
+	(ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= 8) && (ALIGNMENT <= 64),
+	"ALIGNMENT must be either 8, 16, 32 or 64!\n"
 );
 
-#define ALLOC_DEBUG 1
+//#define ALLOC_DEBUG 1
+
+#define DEADZONE_PADDING sizeof(u64)
 
 #define KIBIBYTE 1024
 #define MEBIBYTE (1024 * KIBIBYTE)

@@ -4,12 +4,9 @@
 int
 main(void)
 {
-	const int x = arena_create();
-	if (x == 1)
-		return 1;
 	constexpr int z = 32;
-	struct Arena_Handle hdl = arena_alloc(z);
-	char *msg = handle_lock(&hdl);
+	struct Arena_Handle hdl = syn_alloc(z);
+	char *msg = syn_freeze(&hdl);
 
 	printf("hello world1\n");
 	scanf("%s", msg);
@@ -17,8 +14,8 @@ main(void)
 	fflush(stdin);
 	fflush(stdout);
 
-	struct Arena_Handle hdl2 = arena_alloc(z * 2);
-	char *msg2 = handle_lock(&hdl2);
+	struct Arena_Handle hdl2 = syn_alloc(z * 2);
+	char *msg2 = syn_freeze(&hdl2);
 
 	printf("hello world2\n");
 	scanf("%s", msg2);
@@ -29,8 +26,8 @@ main(void)
 	//handle_unlock(&hdl2);
 
 
-	struct Arena_Handle hdl3 = arena_alloc(z * 2);
-	char *msg3 = handle_lock(&hdl3);
+	struct Arena_Handle hdl3 = syn_alloc(z * 2);
+	char *msg3 = syn_freeze(&hdl3);
 
 	printf("hello world3\n");
 	scanf("%s", msg3);
@@ -41,10 +38,10 @@ main(void)
 	fflush(stdout);
 	//handle_unlock(&hdl3);
 
-	handle_unlock(&hdl2);
-	arena_free(&hdl2);
-	struct Arena_Handle hdl4 = arena_alloc(z);
-	char *msg4 = handle_lock(&hdl4);
+	syn_thaw(&hdl2);
+	syn_free(&hdl2);
+	struct Arena_Handle hdl4 = syn_alloc(z);
+	char *msg4 = syn_freeze(&hdl4);
 
 	printf("hello world4\n");
 	scanf("%s", msg4);
@@ -56,6 +53,6 @@ main(void)
 	//handle_unlock(&hdl4);
 
 
-	handle_unlock(&hdl);
+	syn_thaw(&hdl);
 	arena_destroy();
 }

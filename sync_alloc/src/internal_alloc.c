@@ -3,9 +3,7 @@
 //
 
 #include "internal_alloc.h"
-#if defined(ALLOC_DEBUG)
 #include "debug.h"
-#endif
 #include "helper_functions.h"
 
 extern _Thread_local Arena *arena_thread;
@@ -15,7 +13,9 @@ mempool_create_header(Memory_Pool *restrict pool, const u32 size, const intptr o
 {
 	if ((pool->pool_size - pool->pool_offset) < (helper_add_padding(size) + PD_HEAD_SIZE))
 		goto mp_head_create_error;
-	const u32 chunk_size = size + PD_HEAD_SIZE;
+
+	// just for show, the way this is added is actually the memory layout of each header-alloc-pad.
+	const u32 chunk_size = (u32)helper_add_padding(PD_HEAD_SIZE + size + DEADZONE_PADDING);
 	auto *head = (Pool_Header *)((char *)pool->mem + offset);
 
 	head->size = chunk_size;
@@ -23,12 +23,15 @@ mempool_create_header(Memory_Pool *restrict pool, const u32 size, const intptr o
 	head->prev_block_size = 0;
 	head->block_flags |= PH_ALLOCATED;
 
+	auto *deadzone = (u64 *)((char *)head + chunk_size - DEADZONE_PADDING);
+	*deadzone = HEAP_DEADZONE;
+
 	pool->pool_offset += chunk_size;
 	return head;
 
 mp_head_create_error:
 	#if defined(ALLOC_DEBUG)
-	sync_alloc_log.to_console(log_stderr, "error: not enough room in pool for header!\n");
+	sync_alloc_log.to_console(log_stderr, "not enough room in pool for header!\n");
 	#endif
 	return nullptr;
 }

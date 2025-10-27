@@ -7,89 +7,107 @@
 
 #include "../src/include/structs.h"
 
+typedef enum {
+	ALLOC_SENSITIVE,
+	ALLOC_ZEROED,
+	ALLOC_FROZEN,
+} Raw_Alloc_Flags ATTR_PUBLIC;
 
-///	@brief Creates a new arena. Each arena is thread-local and doubles in size with each new pool.
-///	@return 0 on success, 1 for failure.
+typedef enum {
+	SYN_OK,
+	SYN_HEADER_CORRUPT,
+	SYN_ARENA_CORRUPT,
+	SYN_HANDLE_CORRUPT,
+} Corruption_Integrity ATTR_PUBLIC;
+
+/// @brief Destroys a whole arena, deallocating it.
+/// @note If the arena_thread is NULL, this function does nothing.
+/// @warning Each thread has its own arena.\n If multithreading, make sure to have all threads destroy their own arena.
+ATTR_PUBLIC extern void
+syn_free_all();
+
+/// @brief Checks data corruption in the allocator, ideally before a handle is thawed.\n
+/// syn_thaw() calls upon syn_check_integrity() internally,\n
+/// and will always terminate if corruption has been found.
+/// @note Corruption is only checked around the user allocation, and at the base of each pool.\n
+/// This might be changed later to walk all headers and report all known corruption.
+/// @param user_hdl The handle to check the integrity with.
+/// @return
+/// 0 if there has been no deadzone corruption.\n
+/// 1 if header corruption has been detected.\n
+/// 2 if arena corruption has been detected.\n
+/// 3 if provided handle is corrupted or invalid.
 ATTR_PUBLIC extern int
-arena_create();
-
-
-/// @brief Destroys a whole arena, deallocating it and setting all values to NULL or 0
-/// @warning Each thread has its own arena. If multithreading, make sure to have all threads destroy their own.
-ATTR_PUBLIC extern void
-arena_destroy();
-
-
-/**	@brief Clears up defragmentation of the memory pool where there is any.
- *
- *	@details Indexes through the memory pool from first to last,
- *	if there are two adjacent blocks that are free, links the first free
- *	to the next non-free, then updates head->chunk_size of the first free.
- *
- *	@param light_flag The light defrag option. If true, only a light defragmentation
- *	will occur. If false, heavy defragmentation will occur.
- */
-ATTR_PUBLIC extern void
-arena_defragment(bool light_flag);
-
-
-/** @brief Allocates a new block of memory.
- *
- *	@param size How many bytes the user requests.
- *	@return arena handle to the user, use instead of a vptr.
- *
- *	@note All size is rounded up to the nearest value of ALIGNMENT, and a minimum valid size is 8 bytes.
- *	@warning If the arena is NULL at this point, the library will terminate.
- */
-[[nodiscard]] ATTR_PUBLIC extern struct Arena_Handle
-arena_alloc(usize size);
+syn_check_integrity(struct Arena_Handle *user_hdl);
 
 
 /**
- * @brief Clears all pools, deleting all but the first pool, performing a full reset, unless 1 is given.
- * @param reset_type 0: Will full reset the entire arena.
- * 1: Will soft reset the arena, not deallocating excess pools.
- * 2: Will do the same as 0, but will not wipe the first arena.
+ * @brief Allocates a new block of memory.
+ *
+ * @param size How many bytes the user requests.
+ * @return arena handle to the user, use instead of a vptr.
+ *
+ * @note All size is rounded up to the nearest value of ALIGNMENT, and a minimum valid size is 8 bytes.
+ * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
+ */
+[[nodiscard]] ATTR_PUBLIC extern struct Arena_Handle
+syn_alloc(usize size);
+
+
+/**
+ * @brief "Fake clears", or resets, all allocations.
+ *
+ * @details This does deallocate allocations, but only excess pools and handle tables are deallocated.\n
+ * The first memory pool and handle table are kept, but reset to their original no-allocations state.\n
+ * All active handles should be dropped if this is called, as they will all become invalid.
+ * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 ATTR_PUBLIC extern void
-arena_reset(int reset_type);
+syn_reset();
 
 
-/**	@brief Marks an allocated block via a user's handle as free,
- *	then performs light defragmentation.
- *
- *	@param user_handle The handle to mark as free.
+/**
+ * @brief Marks an allocated block via a user's handle as free,
+ * then performs light defragmentation.
+ * @param user_handle The handle to mark as free.
+ * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 ATTR_PUBLIC extern void
-arena_free(struct Arena_Handle *user_handle);
+syn_free(struct Arena_Handle *user_handle);
 
 
-/** @brief Reallocates a user's block.
- *	@param user_handle The handle to the block to reallocate.
- *	@param size The new size for the allocation.
- *	@returns a 0 if reallocation succeeds,
- *	and the user's handle is updated. If reallocation fails,
- *	the users handle is _not_ updated, and a 1 is returned.
- *
- *	@note If the handle is frozen and reallocation is attempted, nothing will happen.
+/**
+ * @brief Reallocates a user's block.
+ * @param user_handle The handle to the block to reallocate.
+ * @param size The new size for the allocation.
+ * @returns a 0 if reallocation succeeds,
+ * and the user's handle is updated. If reallocation fails,
+ * the users handle is _not_ updated, and a 1 is returned.
+ * @note If the handle is frozen and reallocation is attempted, nothing will happen.
+ * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 ATTR_PUBLIC extern int
-arena_realloc(struct Arena_Handle *user_handle, usize size);
+syn_realloc(struct Arena_Handle *user_handle, usize size);
 
 
-/** @brief Locks a handle for the user to use.
- *	@param user_handle The handle to lock.
- *	@return vptr to the block of user memory.
- *	@note When finished, the handle should be unlocked to allow defragmentation.
+/**
+ * @brief Freezes (or locks), a handle for the user to use.
+ * @param user_handle The handle to lock.
+ * @return void ptr to the block of user memory.
+ * @note When finished, the handle should be unlocked to allow defragmentation.
+ * @warning If the arena_thread is NULL, the library will terminate.
  */
 [[nodiscard]] ATTR_PUBLIC extern void *
-handle_lock(struct Arena_Handle *user_handle);
+syn_freeze(struct Arena_Handle *user_handle);
 
 
-/**	@brief Unlocks a handle for defragmentation. The vptr can no longer be used.
- *	@param user_handle
+/**
+ * @brief Thaws a handle for defragmentation, or when the user is done with the allocation.\n
+ * The void ptr can no longer be used.
+ * @param user_handle The handle to unlock/thaw.
+ * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 ATTR_PUBLIC extern void
-handle_unlock(const struct Arena_Handle *user_handle);
+syn_thaw(const struct Arena_Handle *user_handle);
 
 #endif //ARENA_ALLOCATOR_ALLOC_LIB_H
