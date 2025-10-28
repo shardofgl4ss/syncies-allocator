@@ -32,7 +32,7 @@ arena_init()
 
 	first_pool->mem = (void *)((char *)raw_pool + PD_RESERVED_F_SIZE + DEADZONE_PADDING);
 	auto *deadzone = (u64 *)((char *)first_pool->mem - DEADZONE_PADDING);
-	*deadzone = HEAP_DEADZONE;
+	*deadzone = POOL_DEADZONE;
 
 	first_pool->pool_offset = 0;
 	first_pool->pool_size = MAX_FIRST_POOL_SIZE;

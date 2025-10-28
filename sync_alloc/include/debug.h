@@ -8,10 +8,7 @@
 #define ARENA_ALLOCATOR_DEBUG_H
 
 #include "structs.h"
-#include <pthread.h>
 #include <string.h>
-
-static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /// @brief Logs a message to the console.
 /// @param log_and_stream log_stdout = prints to stdout. log_stderr = prints to stderr.
@@ -38,11 +35,9 @@ debug_print_memory_usage();
 log_stdout(const char *string, va_list arg_list)
 {
 	const char *prefix = "SYNC_ALLOC [LOG] ";
-	pthread_mutex_lock(&log_lock);
 	fputs(prefix, stdout);
 	vfprintf(stdout, string, arg_list);
-    fflush_unlocked(stdout);
-	pthread_mutex_unlock(&log_lock);
+    fflush(stdout);
 }
 
 /// @brief Formats a string + variadic list then prints to stderr.
@@ -52,11 +47,9 @@ log_stdout(const char *string, va_list arg_list)
 log_stderr(const char *restrict string, va_list arg_list)
 {
 	const char *prefix = "SYNC_ALLOC [ERR] ";
-	pthread_mutex_lock(&log_lock);
 	fputs(prefix, stderr);
 	vfprintf(stderr, string, arg_list);
-    fflush_unlocked(stderr);
-	pthread_mutex_unlock(&log_lock);
+    fflush(stderr);
 }
 
 

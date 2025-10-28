@@ -23,7 +23,6 @@ main(void)
 	printf("%s 2\n", msg2);
 	printf("%s 1\n", msg);
 	fflush(stdout);
-	//handle_unlock(&hdl2);
 
 
 	struct Arena_Handle hdl3 = syn_alloc(z * 2);
@@ -36,7 +35,6 @@ main(void)
 	printf("%s 2\n", msg2);
 	printf("%s 1\n", msg);
 	fflush(stdout);
-	//handle_unlock(&hdl3);
 
 	syn_thaw(&hdl2);
 	syn_free(&hdl2);
@@ -50,8 +48,6 @@ main(void)
 	printf("%s 3\n", msg3);
 	printf("%s 1\n", msg);
 	fflush(stdout);
-	//handle_unlock(&hdl4);
-
 
 	syn_thaw(&hdl);
 	syn_free_all();

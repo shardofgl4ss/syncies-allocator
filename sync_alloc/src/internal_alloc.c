@@ -20,11 +20,11 @@ mempool_create_header(Memory_Pool *restrict pool, const u32 size, const intptr o
 
 	head->size = chunk_size;
 	head->handle_idx = 0;
-	head->prev_block_size = 0;
 	head->block_flags |= PH_ALLOCATED;
 
+	// TODO implement split deadzone that has a u32 for the previous block size stored in its lower half.
 	auto *deadzone = (u64 *)((char *)head + chunk_size - DEADZONE_PADDING);
-	*deadzone = HEAP_DEADZONE;
+	*deadzone = POOL_DEADZONE;
 
 	pool->pool_offset += chunk_size;
 	return head;
@@ -63,8 +63,8 @@ mempool_find_block(const u32 requested_size)
 		new_head = mempool_create_header(pool, requested_size, pool->pool_offset);
 		if (new_head != nullptr) {
 			new_head->block_flags |= PH_SENTINEL_L;
-			Pool_Header *prev = new_head - new_head->size;
-			if (prev != nullptr && prev->block_flags & PH_SENTINEL_L)
+			auto *prev = (Pool_Header *)((char *)new_head - new_head->prev_block_size);
+			if (prev != nullptr && (prev->block_flags & PH_SENTINEL_L))
 				prev->block_flags &= ~PH_SENTINEL_L;
 			goto found_block;
 		}

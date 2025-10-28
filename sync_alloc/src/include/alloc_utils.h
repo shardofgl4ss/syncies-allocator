@@ -15,7 +15,7 @@
 [[maybe_unused]] inline static bool
 corrupt_header_check(Pool_Header *restrict head)
 {
-	if (*(u64 *)((char *)head + (head->size - DEADZONE_PADDING)) != HEAP_DEADZONE)
+	if (*(u64 *)((char *)head + (head->size - DEADZONE_PADDING)) != POOL_DEADZONE)
 		return true;
 	return false;
 }
@@ -27,7 +27,7 @@ corrupt_header_check(Pool_Header *restrict head)
 [[maybe_unused]] inline static bool
 corrupt_pool_check(Memory_Pool *pool)
 {
-	if (*(u64 *)((char *)pool + PD_POOL_SIZE) != HEAP_DEADZONE)
+	if (*(u64 *)((char *)pool + PD_POOL_SIZE) != POOL_DEADZONE)
 		return true;
 	return false;
 }

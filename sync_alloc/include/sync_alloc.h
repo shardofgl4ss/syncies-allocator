@@ -11,14 +11,14 @@ typedef enum {
 	ALLOC_SENSITIVE,
 	ALLOC_ZEROED,
 	ALLOC_FROZEN,
-} Raw_Alloc_Flags ATTR_PUBLIC;
+} Raw_Alloc_Flags;
 
 typedef enum {
-	SYN_OK,
-	SYN_HEADER_CORRUPT,
-	SYN_ARENA_CORRUPT,
-	SYN_HANDLE_CORRUPT,
-} Corruption_Integrity ATTR_PUBLIC;
+	SYN_OK             = 0,
+	SYN_HEADER_CORRUPT = 1 << 0,
+	SYN_ARENA_CORRUPT  = 1 << 1,
+	SYN_HANDLE_CORRUPT = 1 << 2,
+} Corruption_Integrity;
 
 /// @brief Destroys a whole arena, deallocating it.
 /// @note If the arena_thread is NULL, this function does nothing.

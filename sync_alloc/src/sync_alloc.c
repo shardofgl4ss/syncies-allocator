@@ -263,7 +263,7 @@ syn_thaw(const struct Arena_Handle *user_handle)
 	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
 	if (arena_thread == nullptr) goto arena_context_lost;
 	if (corrupt_header_check(user_handle->header)) goto corrupt_head;
-	if (!(user_handle->header->block_flags & PH_FROZEN)) goto nocrash_no_frozen;
+	if ((user_handle->header->block_flags & PH_FROZEN)) goto nocrash_no_frozen;
 	#endif
 
 	update_table_generation(user_handle);

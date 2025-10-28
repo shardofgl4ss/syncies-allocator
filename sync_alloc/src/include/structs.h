@@ -200,8 +200,9 @@ typedef struct Debug_VTable {
 /* It is very important to have everything aligned in memory, so we should go out of our way to make it that way.	   *
  * PD here stands for PADDED, F for FIRST as the first arena's pool is a special case. PH also stands for Pool Header. */
 
-
-static constexpr u64 HEAP_DEADZONE = 0xDEADDEADDEADDEADULL;
+// TODO fix all usages of the new pool deadzone vs head deadzone.
+static constexpr u64 POOL_DEADZONE = 0xDEADDEADDEADDEADULL;
+static constexpr u32 HEAD_DEADZONE = 0xDEADDEADU;
 static constexpr u16 PD_ARENA_SIZE = (sizeof(Arena) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_POOL_SIZE = (sizeof(Memory_Pool) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HEAD_SIZE = (sizeof(Pool_Header) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
