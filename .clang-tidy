@@ -1,0 +1,12 @@
+Checks: >-
+  -*,
+  clang-analyzer-*,
+  bugprone-*,
+  misc-*,
+  performance-*,
+  modernize-*,
+  readability-*,
+  cppcoreguidelines-*'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*'
+bugprone-easily-swappable-parameters: false

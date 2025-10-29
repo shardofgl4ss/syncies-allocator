@@ -39,13 +39,14 @@ extern _Thread_local Arena *arena_thread;
 void
 update_sentinel_flags(Pool_Header *head)
 {
-	if (!(head->block_flags & PH_SENTINEL_F)) {
-		Pool_Header *prev_head = head - head->size;
-		if (prev_head != nullptr && prev_head->block_flags & PH_FREE) {
-			head->block_flags |= PH_PREV_FREE;
-			prev_head->block_flags |= PH_NEXT_FREE;
-		}
-	}
+	// TODO fix this as well, it doesnt walk back correctly
+	//if (!(head->block_flags & PH_SENTINEL_F)) {
+	//	Pool_Header *prev_head = head - head->size;
+	//	if (prev_head != nullptr && prev_head->block_flags & PH_FREE) {
+	//		head->block_flags |= PH_PREV_FREE;
+	//		prev_head->block_flags |= PH_NEXT_FREE;
+	//	}
+	//}
 	if (!(head->block_flags & PH_SENTINEL_L)) {
 		Pool_Header *next_head = head + head->size;
 		if (next_head != nullptr && next_head->block_flags & PH_FREE) {

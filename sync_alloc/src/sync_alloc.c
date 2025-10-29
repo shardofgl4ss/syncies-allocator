@@ -30,7 +30,8 @@ syn_free_all()
 [[nodiscard]] struct Arena_Handle
 syn_alloc(const usize size)
 {
-	if (arena_thread == nullptr) {
+	if (arena_thread == nullptr)
+	{
 		if (arena_init() != 0)
 			goto arena_context_lost;
 	}
@@ -50,21 +51,23 @@ syn_alloc(const usize size)
 	const u32 input_bytes = (u32)helper_add_padding(size);
 
 	#if defined(ALLOC_DEBUG)
-	if (input_bytes != size) {
+	if (input_bytes != size)
 		sync_alloc_log.to_console(
-			log_stdout,
-			"alignment padding has been added. input: %lu, padded: %lu\n",
-			size,
-			input_bytes);
-	}
+		                          log_stdout,
+		                          "alignment padding has been added. input: %lu, padded: %lu\n",
+		                          size,
+		                          input_bytes);
 	#endif
 
 	Pool_Header *head;
-	do {
+	do
+	{
 		if (corrupt_pool_check(pool)) goto alloc_corrupt;
-		head = mempool_find_block(input_bytes);
-		if (head == nullptr) {
-			if (pool->next_pool != nullptr) {
+		head = find_new_pool_block(input_bytes);
+		if (head == nullptr)
+		{
+			if (pool->next_pool != nullptr)
+			{
 				pool = pool->next_pool;
 				continue;
 			}
@@ -108,8 +111,10 @@ syn_reset()
 	if (corrupt_pool_check(pool)) goto alloc_corrupt;
 	#endif
 
-	for (u32 i = 2; i < arena_thread->pool_count; i++) {
-		if (pool->next_pool == nullptr) {
+	for (u32 i = 2; i < arena_thread->pool_count; i++)
+	{
+		if (pool->next_pool == nullptr)
+		{
 			helper_destroy(pool->mem, pool->pool_size + PD_POOL_SIZE);
 			return;
 		}
@@ -146,7 +151,8 @@ syn_free(struct Arena_Handle *restrict user_handle)
 
 	Pool_Header *head = user_handle->header;
 	head->block_flags &= ~PH_ALLOCATED;
-	if (head->block_flags & PH_SENSITIVE) {
+	if (head->block_flags & PH_SENSITIVE)
+	{
 		memset(head + PD_HEAD_SIZE, 0, head->size - PD_HEAD_SIZE);
 		head->block_flags &= ~PH_SENSITIVE;
 	}
@@ -190,7 +196,7 @@ syn_realloc(struct Arena_Handle *restrict user_handle, const usize size)
 	// it's probably best to memcpy here
 
 	Pool_Header *old_head = user_handle->header;
-	Pool_Header *new_head = mempool_find_block((u32)helper_add_padding(size));
+	Pool_Header *new_head = find_new_pool_block((u32)helper_add_padding(size));
 	if (new_head == nullptr) return 1;
 	user_handle->generation++;
 
@@ -201,7 +207,8 @@ syn_realloc(struct Arena_Handle *restrict user_handle, const usize size)
 	user_handle->addr = new_head + PD_HEAD_SIZE;
 	new_head->block_flags = old_head->block_flags;
 
-	if (old_head->block_flags & PH_SENSITIVE) {
+	if (old_head->block_flags & PH_SENSITIVE)
+	{
 		memset((char *)old_head + PD_HEAD_SIZE, 0, old_head->size - PD_HEAD_SIZE);
 		old_head->block_flags &= ~PH_SENSITIVE;
 	}
@@ -258,18 +265,19 @@ corrupt_head:
 
 
 void
-syn_thaw(const struct Arena_Handle *user_handle)
+syn_thaw(const struct Arena_Handle *restrict user_handle)
 {
 	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
 	if (arena_thread == nullptr) goto arena_context_lost;
 	if (corrupt_header_check(user_handle->header)) goto corrupt_head;
-	if ((user_handle->header->block_flags & PH_FROZEN)) goto nocrash_no_frozen;
+	if (!(user_handle->header->block_flags & PH_FROZEN)) goto nocrash_no_frozen;
 	#endif
 
 	update_table_generation(user_handle);
 	if (!handle_generation_checksum(user_handle)) goto nocrash_stale;
 	user_handle->header->block_flags &= ~PH_FROZEN;
 	//arena_defragment(arena, true);
+	return;
 
 	#if !defined(SYN_ALLOC_DISABLE_SAFETY)
 nocrash_no_frozen:

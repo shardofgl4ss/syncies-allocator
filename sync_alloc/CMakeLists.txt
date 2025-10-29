@@ -1,4 +1,4 @@
-add_library(sync_alloc SHARED
+add_library(sync_alloc STATIC
 			src/include/defs.h
 			src/include/structs.h
 			include/sync_alloc.h
@@ -17,4 +17,5 @@ add_library(sync_alloc SHARED
 			src/include/alloc_utils.h
 )
 target_include_directories(sync_alloc PUBLIC include PRIVATE src/include)
-target_compile_options(sync_alloc PRIVATE -Wno-format-nonliteral)
+target_compile_options(sync_alloc PRIVATE ${DEBUG_COMPILE_FLAGS} -Wno-format-nonliteral)
+target_link_options(sync_alloc PRIVATE -fsanitize=address -fsanitize=undefined -fsanitize=leak)
