@@ -11,15 +11,15 @@
 /// @brief Creates a new entry in the handle table wherever it fits.
 /// @param head The head to link to the handle.
 /// @return a ((hopefully)) valid Arena Handle. handle->addr will be NULL if it fails.
-ATTR_PRIVATE extern struct Arena_Handle
-mempool_create_handle_and_entry(Pool_Header *restrict head);
+[[gnu::visibility("hidden")]]
+extern struct Arena_Handle mempool_create_handle_and_entry(Pool_Header *restrict head);
 
 
 /// @brief Creates a new handle table. Does not increment table_count by itself, do that before calling.
 ///
 /// @param table The table to map.
 /// @return a valid handle table if there is enough system memory.
-ATTR_PRIVATE extern Handle_Table *
-mempool_new_handle_table(Handle_Table *restrict table);
+[[gnu::visibility("hidden")]]
+extern Handle_Table *mempool_new_handle_table(Handle_Table *restrict table);
 
 #endif //ARENA_ALLOCATOR_HANDLE_H

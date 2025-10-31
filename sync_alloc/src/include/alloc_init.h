@@ -5,7 +5,6 @@
 #ifndef ARENA_ALLOCATOR_ALLOC_INIT_H
 #define ARENA_ALLOCATOR_ALLOC_INIT_H
 
-#include "debug.h"
 #include "structs.h"
 
 
@@ -14,8 +13,8 @@
 ///
 /// @warning The arena ptr in TLS will be a nullptr if there is not enough memory.
 /// If this happens, the library will terminate.
-ATTR_PRIVATE extern int
-arena_init();
+[[gnu::visibility("hidden")]]
+extern int arena_init();
 
 /// @brief Creates a new memory pool.
 ///	@param size How many bytes to give to the new pool.
@@ -23,13 +22,13 @@ arena_init();
 ///
 ///	@note Handles linking pools, and updating the total_mem_size in the arena struct.
 ///	@warning Returns NULL if allocating a new pool fails, or if provided size is zero.
-ATTR_PRIVATE extern Memory_Pool *
-pool_init(u32 size);
+[[gnu::visibility("hidden")]]
+extern Memory_Pool *pool_init(u32 size);
 
 /// @brief Terminates the program upon a catastrophic error,
 /// such as the core context of the allocator being NULL/nullptr.
 /// @param panic_msg The emergency message to print.
-ATTR_PRIVATE _Noreturn extern void
-syn_panic(const char *panic_msg);
+[[gnu::visibility("hidden")]]
+_Noreturn extern void syn_panic(const char *panic_msg);
 
 #endif //ARENA_ALLOCATOR_ALLOC_INIT_H

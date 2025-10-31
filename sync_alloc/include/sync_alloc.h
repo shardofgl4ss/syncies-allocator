@@ -5,8 +5,11 @@
 #ifndef ARENA_ALLOCATOR_ALLOC_LIB_H
 #define ARENA_ALLOCATOR_ALLOC_LIB_H
 
-#include "../src/include/structs.h"
+#include "defs.h"
+#include "structs.h"
+#include <string.h>
 
+// clang-format off
 typedef enum {
 	ALLOC_SENSITIVE,
 	ALLOC_ZEROED,
@@ -14,19 +17,20 @@ typedef enum {
 } Raw_Alloc_Flags;
 
 typedef enum {
-	SYN_OK             = 0,
+	SYN_OK		   = 0,
 	SYN_HEADER_CORRUPT = 1 << 0,
 	SYN_ARENA_CORRUPT  = 1 << 1,
 	SYN_HANDLE_CORRUPT = 1 << 2,
 } Corruption_Integrity;
+// clang-format on
 
 /// @brief Destroys a whole arena, deallocating it.
 /// @note If the arena_thread is NULL, this function does nothing.
 /// @warning Each thread has its own arena.\n If multithreading, make sure to have all threads destroy their own arena.
-ATTR_PUBLIC extern void
-syn_free_all();
+[[gnu::visibility("default")]]
+extern void syn_free_all();
 
-#if defined(SYN_ALLOC_DISABLE_SAFETY)
+#ifdef SYN_ALLOC_DISABLE_SAFETY
 /// @brief Checks heap corruption in the allocator.
 /// @note Corruption is only checked around the user allocation, and at the base of each pool.\n
 /// This might be changed later to walk all headers and report all known corruption.
@@ -36,8 +40,8 @@ syn_free_all();
 /// 1 if header corruption has been detected.\n
 /// 2 if arena corruption has been detected.\n
 /// 3 if provided handle is corrupted or invalid.
-ATTR_PUBLIC extern int
-syn_check_integrity(struct Arena_Handle *user_hdl);
+[[gnu::visibility("default")]]
+extern int syn_check_integrity(struct Arena_Handle *user_hdl);
 #endif
 
 /**
@@ -49,20 +53,28 @@ syn_check_integrity(struct Arena_Handle *user_hdl);
  * @note All size is rounded up to the nearest value of ALIGNMENT, and a minimum valid size is 8 bytes.
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
-[[nodiscard]] ATTR_PUBLIC extern struct Arena_Handle
-syn_alloc(usize size);
+[[nodiscard, gnu::visibility("default")]]
+extern struct Arena_Handle syn_alloc(usize size);
+
+
+[[nodiscard, gnu::visibility("default")]]
+inline static struct Arena_Handle syn_calloc(usize size) {
+	struct Arena_Handle hdl = syn_alloc(size);
+	memset(hdl.addr, 0, hdl.header->size - PD_HEAD_SIZE - DEADZONE_PADDING);
+	return hdl;
+}
 
 
 /**
- * @brief "Fake clears", or resets, all allocations.
+ * @brief "Fake clears", or resets, all allocations. Less overhead then freeing all.
  *
  * @details This does deallocate allocations, but only excess pools and handle tables are deallocated.\n
  * The first memory pool and handle table are kept, but reset to their original no-allocations state.\n
  * All active handles should be dropped if this is called, as they will all become invalid.
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
-ATTR_PUBLIC extern void
-syn_reset();
+[[gnu::visibility("default")]]
+extern void syn_reset();
 
 
 /**
@@ -71,8 +83,8 @@ syn_reset();
  * @param user_handle The handle to mark as free.
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
-ATTR_PUBLIC extern void
-syn_free(struct Arena_Handle *user_handle);
+[[gnu::visibility("default")]]
+extern void syn_free(struct Arena_Handle *user_handle);
 
 
 /**
@@ -85,8 +97,8 @@ syn_free(struct Arena_Handle *user_handle);
  * @note If the handle is frozen and reallocation is attempted, nothing will happen.
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
-ATTR_PUBLIC extern int
-syn_realloc(struct Arena_Handle *user_handle, usize size);
+[[gnu::visibility("default")]]
+extern int syn_realloc(struct Arena_Handle *user_handle, usize size);
 
 
 /**
@@ -96,8 +108,8 @@ syn_realloc(struct Arena_Handle *user_handle, usize size);
  * @note When finished, the handle should be unlocked to allow defragmentation.
  * @warning If the arena_thread is NULL, the library will terminate.
  */
-[[nodiscard]] ATTR_PUBLIC extern void *
-syn_freeze(struct Arena_Handle *user_handle);
+[[nodiscard, gnu::visibility("default")]]
+extern void *syn_freeze(struct Arena_Handle *user_handle);
 
 
 /**
@@ -106,7 +118,7 @@ syn_freeze(struct Arena_Handle *user_handle);
  * @param user_handle The handle to unlock/thaw.
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
-ATTR_PUBLIC extern void
-syn_thaw(const struct Arena_Handle *user_handle);
+[[gnu::visibility("default")]]
+extern void syn_thaw(const struct Arena_Handle *user_handle);
 
 #endif //ARENA_ALLOCATOR_ALLOC_LIB_H
