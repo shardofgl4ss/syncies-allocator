@@ -11,7 +11,7 @@
 
 // clang-format off
 
-/**	
+/**
  * 	Memory Pool header-block flags.
  *	Each value is in a bitmap to be able to store each in a single 8-bit integer.
  *
@@ -28,23 +28,23 @@
  *	@details
  *	To clear multiple flags:	@code x &= ~(FLAG1 | FLAG2); @endcode
  */
-enum Header_Flags : uint {
-	PH_FREE        = 1 << 0,	/**< FREE: Empty block. */
-	PH_ALLOCATED   = 1 << 1,	/**< ALLOCATED: free to relocate and defrag. */
-	PH_FROZEN      = 1 << 2,	/**< FROZEN: dictates that the handle has been dereferenced, do NOT touch. */
-	PH_SENTINEL_F  = 1 << 3,	/**< SENTINEL: Marks the very first or last header in the pool. */
-	PH_SENTINEL_L  = 1 << 4,	/**< SENTINEL: Marks the very first or last header in the pool. */
-	PH_PREV_FREE   = 1 << 5,	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
-	PH_NEXT_FREE   = 1 << 6,	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks. */
-	PH_HUGE_PAGE   = 1 << 7,	/**< HUGE_PAGE: Determines if this block is in the huge page pool or not. */
-	PH_ZEROED      = 1 << 8,	/**< ZEROED: for future calloc like impl. */
-	PH_SENSITIVE   = 1 << 9,	/**< SENSITIVE: for heap memory that needs to be zeroed out before reuse. */
-	PH_RECENT_FREE = 1 << 10,	/**< RECENT_FREE: for later hardening, might not use. */
-	PH_RAW         = 1 << 11,	/**< RAW_TYPE: No handle is associated with this header, only a raw void ptr. */
+enum Header_Flags : u16 {
+	PH_FREE        = 1 << 0,	/**< FREE: Empty block.									*/
+	PH_ALLOCATED   = 1 << 1,	/**< ALLOCATED: free to relocate and defrag.						*/
+	PH_FROZEN      = 1 << 2,	/**< FROZEN: dictates that the handle has been dereferenced, do NOT touch.		*/
+	PH_SENTINEL_F  = 1 << 3,	/**< SENTINEL: Marks the very first or last header in the pool.				*/
+	PH_SENTINEL_L  = 1 << 4,	/**< SENTINEL: Marks the very first or last header in the pool.				*/
+	PH_PREV_FREE   = 1 << 5,	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks.	*/
+	PH_NEXT_FREE   = 1 << 6,	/**< PREV_FREE and NEXT_FREE flags are entirely just to help coalesce free blocks.	*/
+	PH_HUGE_PAGE   = 1 << 7,	/**< HUGE_PAGE: Determines if this block is in the huge page pool or not.		*/
+	PH_ZEROED      = 1 << 8,	/**< ZEROED: for future calloc like impl.						*/
+	PH_SENSITIVE   = 1 << 9,	/**< SENSITIVE: for heap memory that needs to be zeroed out before reuse.		*/
+	PH_RECENT_FREE = 1 << 10,	/**< RECENT_FREE: for later hardening, might not use.					*/
+	PH_RAW         = 1 << 11,	/**< RAW_TYPE: No handle is associated with this header, only a raw void ptr.		*/
 };
 
 
-/** 
+/**
  * 	Memory pool block header, not for huge pools or slabs, but right in the middle.
  *
  *	@details
@@ -73,12 +73,11 @@ enum Header_Flags : uint {
  *	To clear multiple flags:	@code block_flag &= ~(FLAG1 | FLAG2); @endcode
  */
 typedef struct Pool_Header {
-	u32 handle_idx;		/**< Index to the header's handle.		*/
 	u32 size;		/**< Size of the block in front of the header.	*/
-	u32 prev_block_size;	/**< Size of the previous header block.		*/
-	bit32 block_flags;	/**< Enum bitmap for flags.			*/
-} Pool_Header;
-
+	u16 handle_idx;		/**< Index to the header's handle.		*/
+	//u32 prev_size;	/**< Size of the previous header block.		*/
+	bit16 bitflags;		/**< Enum bitmap for flags.			*/
+} pool_header_t;
 
 /**
  * 	Freed memory pool block header.
@@ -94,11 +93,29 @@ typedef struct Pool_Header {
 typedef struct Pool_Free_Header {
 	struct Pool_Free_Header *next_free;
 	u32 size;
-	bit32 block_flags;
-} Pool_Free_Header;
+	bit32 bitflags;
+} pool_free_header_t;
 
+/**
+ * 	Extended pool header, for use in the huge page pools only.
+ *
+ *	@details
+ *	Each header can handle a maximum of 2^63 bytes in size on 64 bit machines,
+ *	if this is not enough for you, then hello future man!
+ *
+ *	The next header is obtained by doing PD_HEAD_SIZE + head->size.
+ *	The prev header is obtained by doing head - (head->prev_block_size + PD_HEAD_SIZE)
+ *	The handle index is copied over from the user handle.
+ *	Refer to the normal header struct doc for more information.
+ */
+typedef struct Pool_Header_Ext {
+	usize size;		/**< Size of the block in front of the header.	*/
+	usize prev_block_size;	/**< Size of the previous header block.		*/
+	u32 handle_idx;		/**< Index to the header's handle.		*/
+	bit32 block_flags;	/**< Flag-enum bitmap of the header.		*/
+} pool_header_ext_t;
 
-/** 
+/**
  * 	Memory pool data structure.
  *
  *	@details
@@ -111,34 +128,13 @@ typedef struct Memory_Pool {
 	void *mem;			/**< Pointer to the heap region.			*/
 	struct Memory_Pool *next_pool;	/**< Pointer to the next pool.				*/
 	struct Memory_Pool *prev_pool;	/**< Pointer to the previous pool.			*/
-	Pool_Free_Header *first_free;	/**< Pointer to the first freed header.			*/
-	u32 pool_size;			/**< Maximum allocated size for this pool in bytes.	*/
-	u32 pool_offset;		/**< How much space has been used so far in bytes.	*/
+	pool_free_header_t *first_free;	/**< Pointer to the first freed header.			*/
+	u32 size;			/**< Maximum allocated size for this pool in bytes.	*/
+	u32 offset;			/**< How much space has been used so far in bytes.	*/
 	u32 free_count;			/**< How many freed headers there are in this pool.	*/
-} Memory_Pool;
+} memory_pool_t;
 
-
-/**	
- * 	Extended pool header, for use in the huge page pools only.
- *
- *	@details
- *	Each header can handle a maximum of 2^63 bytes in size on 64 bit machines,
- *	if this is not enough for you, then hello future man!
- *
- *	The next header is obtained by doing PD_HEAD_SIZE + head->size.
- *	The prev header is obtained by doing head - (head->prev_block_size + PD_HEAD_SIZE)
- *	The handle index is copied over from the user handle.
- *	Refer to the normal header struct doc for more information.
- */
-typedef struct Pool_Extended_Header {
-	usize block_size;	/**< Size of the block in front of the header.	*/
-	usize prev_block_size;	/**< Size of the previous header block.		*/
-	u32 handle_idx;		/**< Index to the header's handle.		*/
-	bit32 block_flags;	/**< Flag-enum bitmap of the header.		*/
-} Extended_Header;
-
-
-/**	
+/**
  * 	Arena structure for use by the user.
  *
  *	@details Each handle contains a flattened handle index for lookup. When you need to use
@@ -154,14 +150,14 @@ typedef struct Pool_Extended_Header {
  *	@warning Interacting with the structure manually, beyond passing it between arena functions,
  *	is undefined behavior.
  */
-struct Arena_Handle {
+typedef struct Arena_Handle {
 	void *addr;			/**< address to the user's block. Equivalent to *header + sizeof(header). */
-	Pool_Header *header;		/**< pointer to the sentinel header of the user's block.		  */
+	pool_header_t *header;		/**< pointer to the sentinel header of the user's block.		  */
 	u32 generation;			/**< generation of pointer, to detect stale handles and use-after-frees.  */
 	u32 handle_matrix_index;	/**< flattened matrix index.						  */
-};
+} syn_handle_t;
 
-/** 
+/**
  * 	Table of user allocations.
  *
  *	@details Each handle table has a max handle count of 64, allocated in chunks.
@@ -173,16 +169,16 @@ struct Arena_Handle {
  *	For the bitmap, 0 == FREE, 1 == ALLOCATED.
  */
 typedef struct Handle_Table {
-	struct Handle_Table *next_table;
+	struct Handle_Table *next_table;	/**< Pointer to the next table.				*/
 	bit64 entries_bitmap;			/**< Bitmap of used and free handles			*/
 	u32 table_id;				/**< The index of the current table.			*/
 	struct Arena_Handle handle_entries[];	/**< array of entries via FAM. index via entries bit.	*/
-} Handle_Table;
+} handle_table_t;
 
 
 /**
  * 	Super-struct-ure for the entire arena.
- *	
+ *
  *	@details Each arena is put in its own TLS so each thread has its own arena,
  *	reducing memory congestion and (hopefully) speed due to no thread locking needed,
  *	albeit at an increased complexity level as each thread manages their own heap.
@@ -197,10 +193,10 @@ typedef struct Handle_Table {
  *	2 GiB. If you need more then this _per pool_, then may god help you.
  *
  * 	@details
- * 	When allocation in all pools has hit its limit (i.e, calling find_new_pool_block returns 
- * 	nullptr), a new pool will be made and linked to the previous, and the previous linked to 
- * 	the new, via _pool_init()_, and arena_thread->pool_count is incremented. The new pool's 
- * 	size is set to the previous pool's size * 2, making further capacity limit hits twice as 
+ * 	When allocation in all pools has hit its limit (i.e, calling find_new_pool_block returns
+ * 	nullptr), a new pool will be made and linked to the previous, and the previous linked to
+ * 	the new, via _pool_init()_, and arena_thread->pool_count is incremented. The new pool's
+ * 	size is set to the previous pool's size * 2, making further capacity limit hits twice as
  * 	unlikely compared to if it were to just do prev_pool->size + prev_pool->size.
  *
  * 	@details
@@ -210,21 +206,20 @@ typedef struct Handle_Table {
  * 	allocation and logging capacity.
  */
 typedef struct Arena {
-	Handle_Table *first_hdl_tbl;	/**< Pointer to LL of tables, matrix.		*/
-	Memory_Pool *first_mempool;	/**< Pointer to the first memory pool.		*/
-	Memory_Pool *first_hp_pool;	/**< Pointer to the first huge page pool.	*/
+	handle_table_t *first_hdl_tbl;	/**< Pointer to LL of tables, matrix.		*/
+	memory_pool_t *first_mempool;	/**< Pointer to the first memory pool.		*/
+	memory_pool_t *first_hp_pool;	/**< Pointer to the first huge page pool.	*/
 	usize total_arena_bytes;	/**< The total size of all pools together.	*/
 	u32 table_count;		/**< How many tables there are.			*/
 	u32 pool_count;			/**< How many memory pools there are.		*/
-} Arena;
+} arena_t;
 
 typedef struct Debug_VTable {
-	void
-	(*debug_print_all)();
-	void
-	(*to_console)(void (*log_stream)(const char *restrict string, va_list arg_list), const char *restrict str, ...);
+	void (*debug_print_all)();
+	void (*to_console)(void (*log_stream)(const char *restrict string, va_list arg_list), const char *restrict str, ...);
 	// i love this fptr, it traumatizes my programmer friends. I am NOT changing it.
-} Debug_VTable;
+} debug_vtable_t;
+
 
 // clang-format on
 
@@ -236,14 +231,14 @@ typedef struct Debug_VTable {
 // TODO fix all usages of the new pool deadzone vs head deadzone.
 static constexpr u64 POOL_DEADZONE = 0xDEADDEADDEADDEADULL;
 static constexpr u32 HEAD_DEADZONE = 0xDEADDEADU;
-static constexpr u16 PD_ARENA_SIZE = (sizeof(Arena) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_POOL_SIZE = (sizeof(Memory_Pool) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_HEAD_SIZE = (sizeof(Pool_Header) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_FREE_PH_SIZE = (sizeof(Pool_Free_Header) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_HANDLE_SIZE = (sizeof(struct Arena_Handle) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_TABLE_SIZE = (sizeof(Handle_Table) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
+static constexpr u16 PD_ARENA_SIZE = (sizeof(arena_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_POOL_SIZE = (sizeof(memory_pool_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HEAD_SIZE = (sizeof(pool_header_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_FREE_PH_SIZE = (sizeof(pool_free_header_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HANDLE_SIZE = (sizeof(syn_handle_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_TABLE_SIZE = (sizeof(handle_table_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HDL_MATRIX_SIZE =
-	((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE)) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
+		((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE)) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 
 #endif //ARENA_ALLOCATOR_STRUCTS_H

@@ -12,7 +12,7 @@
 // TODO refactor debug_print_memory_usage() to use new internal struct VLA apis,
 // for more contained tracking of each object
 
-extern _Thread_local Arena *restrict arena_thread;
+extern _Thread_local arena_t *restrict arena_thread;
 
 void log_to_console(void (*log_and_stream)(const char *restrict format, va_list va_args),
 		    const char *restrict str,
@@ -41,11 +41,11 @@ logger_start_failure:
 }
 
 void debug_print_memory_usage() {
-	const Memory_Pool *pool = arena_thread->first_mempool;
-	const Pool_Header *header = arena_thread->first_mempool->pool_offset != 0
-					    ? (Pool_Header *)arena_thread->first_mempool->mem
+	const memory_pool_t *pool = arena_thread->first_mempool;
+	const pool_header_t *header = arena_thread->first_mempool->offset != 0
+					    ? (pool_header_t *)arena_thread->first_mempool->mem
 					    : nullptr;
-	const Handle_Table *handle_table = arena_thread->first_hdl_tbl;
+	const handle_table_t *handle_table = arena_thread->first_hdl_tbl;
 
 	u64 pool_count = 0;
 	u64 head_count = 0;
@@ -53,7 +53,7 @@ void debug_print_memory_usage() {
 	u64 total_pool_mem = arena_thread->total_arena_bytes;
 
 	while (pool != nullptr) {
-		total_pool_mem += pool->pool_size;
+		total_pool_mem += pool->size;
 		free_headers += pool->free_count;
 		pool = pool->next_pool;
 		pool_count++;
@@ -103,5 +103,5 @@ void debug_print_memory_usage() {
 	sync_alloc_log.to_console(log_stdout, "Total count of handle tables: %u\n", table_count);
 }
 
-Debug_VTable sync_alloc_log = {.to_console = &log_to_console, .debug_print_all = &debug_print_memory_usage};
+debug_v_table_t sync_alloc_log = {.to_console = &log_to_console, .debug_print_all = &debug_print_memory_usage};
 

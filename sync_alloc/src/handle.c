@@ -8,17 +8,17 @@
 #include <stdbit.h>
 #include <stdint.h>
 
-extern _Thread_local Arena *arena_thread;
+extern _Thread_local arena_t *arena_thread;
 
 // TODO refactor handle functions to use new internal struct VLA apis,
 // for more contained tracking of each object
 
-struct Arena_Handle mempool_create_handle_and_entry(Pool_Header *restrict head) {
+struct Arena_Handle mempool_create_handle_and_entry(pool_header_t *restrict head) {
 	if (arena_thread == nullptr) {
 		syn_panic("arena_thread was nullptr at: mempool_create_handle_and_entry()!\n");
 	}
 	struct Arena_Handle hdl = {};
-	Handle_Table *table = (arena_thread->first_hdl_tbl != nullptr) ? arena_thread->first_hdl_tbl
+	handle_table_t *table = (arena_thread->first_hdl_tbl != nullptr) ? arena_thread->first_hdl_tbl
 								       : mempool_new_handle_table(nullptr);
 
 	if (head == nullptr || arena_thread->first_mempool == nullptr) {
@@ -64,12 +64,12 @@ reloop_hdl_tbl:
 	return hdl;
 }
 
-Handle_Table *mempool_new_handle_table(Handle_Table *restrict table) {
+handle_table_t *mempool_new_handle_table(handle_table_t *restrict table) {
 	if (arena_thread == nullptr) {
 		syn_panic("arena_thread TLS is nullptr at function: mempool_new_handle_table()!\n");
 	}
 
-	Handle_Table *new_tbl = helper_map_mem(PD_HDL_MATRIX_SIZE);
+	handle_table_t *new_tbl = helper_map_mem(PD_HDL_MATRIX_SIZE);
 
 	const u32 new_id = ++arena_thread->table_count;
 

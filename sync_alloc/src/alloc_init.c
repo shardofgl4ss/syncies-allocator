@@ -15,7 +15,7 @@
 #include <unistd.h>
 
 
-_Thread_local Arena *arena_thread = nullptr;
+_Thread_local arena_t *arena_thread = nullptr;
 
 int arena_init() {
 	void *raw_pool = helper_map_mem((MAX_FIRST_POOL_SIZE + (ALIGNMENT - 1)) & (usize) ~(ALIGNMENT - 1));
@@ -31,14 +31,14 @@ int arena_init() {
 	 * This spoofs a max memory of POOL_SIZE when its actually POOL_SIZE - reserved. 		*
 	 * Alignment is added to the pool in case the user changes it to 16 or 32, it will be aligned.	*/
 
-	auto *first_pool = (Memory_Pool *)((char *)raw_pool + PD_ARENA_SIZE);
+	auto *first_pool = (memory_pool_t *)((char *)raw_pool + PD_ARENA_SIZE);
 
 	first_pool->mem = (void *)((char *)raw_pool + PD_RESERVED_F_SIZE + DEADZONE_PADDING);
 	auto *deadzone = (u64 *)((char *)first_pool->mem - DEADZONE_PADDING);
 	*deadzone = POOL_DEADZONE;
 
-	first_pool->pool_offset = 0;
-	first_pool->pool_size = MAX_FIRST_POOL_SIZE;
+	first_pool->offset = 0;
+	first_pool->size = MAX_FIRST_POOL_SIZE;
 	first_pool->next_pool = nullptr;
 	first_pool->prev_pool = nullptr;
 
@@ -58,7 +58,7 @@ alloc_failure:
 	return 1;
 }
 
-Memory_Pool *pool_init(const u32 size) {
+memory_pool_t *pool_init(const u32 size) {
 	if (arena_thread == nullptr) {
 		syn_panic("arena_thread was nullptr at: pool_init()!\n");
 	}
@@ -70,24 +70,24 @@ Memory_Pool *pool_init(const u32 size) {
 		return nullptr;
 	}
 
-	Memory_Pool *new_pool = heap_base;
+	memory_pool_t *new_pool = heap_base;
 	new_pool->mem = (void *)((char *)heap_base + PD_POOL_SIZE);
-	new_pool->pool_size = padded_size;
+	new_pool->size = padded_size;
 	new_pool->free_count = 0;
-	new_pool->pool_offset = 0;
+	new_pool->offset = 0;
 	new_pool->first_free = nullptr;
 	new_pool->next_pool = nullptr;
 
-	Memory_Pool *pool[arena_thread->pool_count];
+	memory_pool_t *pool[arena_thread->pool_count];
 	const int pool_arr_len = return_pool_array(pool);
 	if (!pool_arr_len) {
 		return nullptr;
 	}
-	Memory_Pool *prev_pool = pool[pool_arr_len];
+	memory_pool_t *prev_pool = pool[pool_arr_len];
 	new_pool->prev_pool = new_pool;
 	prev_pool->next_pool = new_pool;
 
-	arena_thread->total_arena_bytes += new_pool->pool_size;
+	arena_thread->total_arena_bytes += new_pool->size;
 	arena_thread->pool_count++;
 
 	return new_pool;

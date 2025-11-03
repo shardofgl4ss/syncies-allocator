@@ -37,7 +37,7 @@ inline static usize helper_add_padding(const usize input) {
 /// @param head Header ptr to the header to do ptr arithmetic,
 /// to calculate the location of the block.
 [[maybe_unused, gnu::const]]
-inline static void *helper_return_block_addr(Pool_Header *head) {
+inline static void *helper_return_block_addr(pool_header_t *head) {
 	return (char *)head + PD_HEAD_SIZE;
 }
 

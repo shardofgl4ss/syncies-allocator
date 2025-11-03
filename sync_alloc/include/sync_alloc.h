@@ -119,6 +119,6 @@ extern void *syn_freeze(struct Arena_Handle *user_handle);
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 [[gnu::visibility("default")]]
-extern void syn_thaw(const struct Arena_Handle *user_handle);
+extern void syn_thaw(struct Arena_Handle *user_handle);
 
 #endif //ARENA_ALLOCATOR_ALLOC_LIB_H

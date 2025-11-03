@@ -5,22 +5,23 @@
 #ifndef ARENA_ALLOCATOR_ALLOC_UTILS_H
 #define ARENA_ALLOCATOR_ALLOC_UTILS_H
 
+#include "defs.h"
 #include "structs.h"
 #include "types.h"
 
 [[gnu::visibility("hidden")]]
-extern _Thread_local Arena *arena_thread;
+extern _Thread_local arena_t *arena_thread;
 
 [[gnu::visibility("hidden")]]
-extern int bad_alloc_check(struct Arena_Handle *restrict hdl);
+extern int bad_alloc_check(const struct Arena_Handle *restrict hdl, int do_checksum);
 
-[[gnu::visibility("hidden")]]
-inline static int return_table_array(Handle_Table **arr) {
+[[gnu::visibility("hidden"), maybe_unused]]
+inline static int return_table_array(handle_table_t **arr) {
 	if (arena_thread == nullptr || arena_thread->table_count == 0 || arena_thread->first_hdl_tbl == nullptr ||
 	    arr == nullptr) {
 		return 0;
 	}
-	Handle_Table *tbl = arena_thread->first_hdl_tbl;
+	handle_table_t *tbl = arena_thread->first_hdl_tbl;
 
 	int idx = 0;
 	while (idx < arena_thread->pool_count && tbl != nullptr) {
@@ -40,12 +41,12 @@ inline static int return_table_array(Handle_Table **arr) {
  * @warning If any parameter is NULL or there is no list, this will return zero,
  * and not mutate the ptrs provided.
  */
-[[gnu::visibility("hidden")]]
-inline static int return_pool_array(Memory_Pool **arr) {
+[[gnu::visibility("hidden"), maybe_unused]]
+inline static int return_pool_array(memory_pool_t **arr) {
 	if (arena_thread == nullptr || arena_thread->first_mempool == nullptr || arr == nullptr) {
 		return 0;
 	}
-	Memory_Pool *pool = arena_thread->first_mempool;
+	memory_pool_t *pool = arena_thread->first_mempool;
 
 	int idx = 0;
 	while (idx < arena_thread->pool_count && pool != nullptr) {
@@ -60,18 +61,18 @@ inline static int return_pool_array(Memory_Pool **arr) {
  * The array is not allocated, it has to be allocated before this function is called.
  *
  * @param arr The stack-allocated VLA to fill.
- * @param pool Which pool to walk the free list with..
+ * @param pool Which pool to walk the free list with.
  * @return How many free headers were found, equates directly to max index.
  *
  * @warning If any parameter is NULL or there is no list, this will return zero,
  * and not mutate the ptrs provided.
  */
-[[gnu::visibility("hidden")]]
-inline static int return_free_array(Pool_Free_Header **arr, const Memory_Pool *pool) {
+[[gnu::visibility("hidden"), maybe_unused]]
+inline static int return_free_array(pool_free_header_t **arr, const memory_pool_t *pool) {
 	if (arena_thread == nullptr || pool == nullptr || pool->first_free == nullptr || arr == nullptr) {
 		return 0;
 	}
-	Pool_Free_Header *head = pool->first_free;
+	pool_free_header_t *head = pool->first_free;
 
 	int idx = 0;
 	while (idx < pool->free_count && head != nullptr) {
@@ -88,7 +89,7 @@ inline static int return_free_array(Pool_Free_Header **arr, const Memory_Pool *p
  * @return False if no corruption is found, true otherwise.
  */
 [[maybe_unused]]
-inline static bool corrupt_header_check(Pool_Header *restrict head) {
+inline static bool corrupt_header_check(pool_header_t *restrict head) {
 	return (*(u64 *)((char *)head + (head->size - DEADZONE_PADDING)) != POOL_DEADZONE);
 }
 
@@ -99,7 +100,7 @@ inline static bool corrupt_header_check(Pool_Header *restrict head) {
  * @return False if no corruption is found, true otherwise.
  */
 [[maybe_unused]]
-inline static bool corrupt_pool_check(Memory_Pool *pool) {
+inline static bool corrupt_pool_check(memory_pool_t *pool) {
 	return (*(u64 *)((char *)pool + PD_POOL_SIZE) != POOL_DEADZONE);
 }
 
@@ -120,7 +121,7 @@ ATTR_PRIVATE extern void defragment_pool(bool light_flag);
  *
  * @param head The header to index.
  */
-ATTR_PRIVATE extern void update_sentinel_flags(Pool_Header *head);
+ATTR_PRIVATE extern void update_sentinel_flags(pool_header_t *head);
 
 
 /**

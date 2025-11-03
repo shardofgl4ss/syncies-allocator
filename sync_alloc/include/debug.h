@@ -8,6 +8,7 @@
 #define ARENA_ALLOCATOR_DEBUG_H
 
 #include "structs.h"
+#include <stdio.h>
 
 /// @brief Logs a message to the console.
 /// @param log_and_stream log_stdout = prints to stdout. log_stderr = prints to stderr.
@@ -50,6 +51,6 @@ inline static void log_stderr(const char *restrict string, va_list arg_list) {
 }
 
 [[maybe_unused, gnu::visibility("hidden")]]
-extern Debug_VTable sync_alloc_log;
+extern debug_vtable_t sync_alloc_log;
 
 #endif //ARENA_ALLOCATOR_DEBUG_H

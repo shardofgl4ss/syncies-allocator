@@ -6,9 +6,8 @@
 #define ARENA_ALLOCATOR_INTERNAL_ALLOC_H
 
 #include "structs.h"
+#include "types.h"
 
-[[gnu::visibility("hidden")]]
-extern _Thread_local Arena *arena_thread;
 
 [[gnu::visibility("hidden")]]
 typedef struct header_ctx header_ctx;
@@ -24,7 +23,7 @@ typedef struct header_ctx header_ctx;
  * @note The header is set as ALLOCATED by default.
  */
 [[gnu::visibility("hidden")]]
-extern Pool_Header *mempool_create_header(const header_ctx *restrict ctx, intptr offset);
+extern pool_header_t *mempool_create_header(const header_ctx *restrict ctx, intptr offset);
 
 
 /**
@@ -38,6 +37,6 @@ extern Pool_Header *mempool_create_header(const header_ctx *restrict ctx, intptr
  * It will only happen if all pools cannot fit the allocation AND mmap fails.
  */
 [[gnu::visibility("hidden")]]
-extern Pool_Header *find_new_pool_block(u32 requested_size);
+extern pool_header_t *find_or_create_new_pool_block(u32 requested_size);
 
 #endif //ARENA_ALLOCATOR_INTERNAL_ALLOC_H

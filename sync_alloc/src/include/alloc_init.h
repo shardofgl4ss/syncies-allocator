@@ -23,7 +23,7 @@ extern int arena_init();
 ///	@note Handles linking pools, and updating the total_mem_size in the arena struct.
 ///	@warning Returns NULL if allocating a new pool fails, or if provided size is zero.
 [[gnu::visibility("hidden")]]
-extern Memory_Pool *pool_init(u32 size);
+extern memory_pool_t *pool_init(u32 size);
 
 /// @brief Terminates the program upon a catastrophic error,
 /// such as the core context of the allocator being NULL/nullptr.
