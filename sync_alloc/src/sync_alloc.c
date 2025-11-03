@@ -47,6 +47,12 @@ arena_initialized:
 	syn_handle_t user_handle = {};
 	memory_pool_t *pool[arena_thread->pool_count];
 	const int pool_arr_len = return_pool_array(pool);
+
+	// I might remove the extra addition of ALIGNMENT, but at the moment,
+	// its for adding extra padding to the user's allocation.
+	// This means at least a small overwrite past buffers
+	// wont immediately nuke the allocator, or cause problems.
+
 	const u32 padded_size = (size > ALIGNMENT)
 		? helper_add_padding(size) + ALIGNMENT
 		: helper_add_padding(ALIGNMENT) + ALIGNMENT;
