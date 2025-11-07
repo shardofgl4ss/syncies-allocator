@@ -13,12 +13,11 @@
 extern _Thread_local arena_t *arena_thread;
 
 [[gnu::visibility("hidden")]]
-extern int bad_alloc_check(const struct Arena_Handle *restrict hdl, int do_checksum);
+extern int bad_alloc_check(const syn_handle_t *restrict hdl, int do_checksum);
 
 [[gnu::visibility("hidden"), maybe_unused]]
 inline static int return_table_array(handle_table_t **arr) {
-	if (arena_thread == nullptr || arena_thread->table_count == 0 || arena_thread->first_hdl_tbl == nullptr ||
-	    arr == nullptr) {
+	if (arena_thread == nullptr || arena_thread->table_count == 0 || arena_thread->first_hdl_tbl == nullptr || arr == nullptr) {
 		return 0;
 	}
 	handle_table_t *tbl = arena_thread->first_hdl_tbl;
@@ -49,8 +48,8 @@ inline static int return_pool_array(memory_pool_t **arr) {
 	memory_pool_t *pool = arena_thread->first_mempool;
 
 	int idx = 0;
-	while (idx < arena_thread->pool_count && pool != nullptr) {
-		arr[idx++] = pool;
+	for (; idx < arena_thread->pool_count; idx++) {
+		arr[idx] = pool;
 		pool = pool->next_pool;
 	}
 	return idx;
@@ -68,11 +67,11 @@ inline static int return_pool_array(memory_pool_t **arr) {
  * and not mutate the ptrs provided.
  */
 [[gnu::visibility("hidden"), maybe_unused]]
-inline static int return_free_array(pool_free_header_t **arr, const memory_pool_t *pool) {
+inline static int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool) {
 	if (arena_thread == nullptr || pool == nullptr || pool->first_free == nullptr || arr == nullptr) {
 		return 0;
 	}
-	pool_free_header_t *head = pool->first_free;
+	pool_free_node_t *head = pool->first_free;
 
 	int idx = 0;
 	while (idx < pool->free_count && head != nullptr) {
@@ -113,7 +112,8 @@ inline static bool corrupt_pool_check(memory_pool_t *pool) {
  * @param light_flag The light defrag option. If true, only a light defragmentation
  * will occur. If false, heavy defragmentation will occur.
  */
-ATTR_PRIVATE extern void defragment_pool(bool light_flag);
+[[gnu::visibility("hidden")]]
+extern void defragment_pool(bool light_flag);
 
 
 /**
@@ -121,7 +121,8 @@ ATTR_PRIVATE extern void defragment_pool(bool light_flag);
  *
  * @param head The header to index.
  */
-ATTR_PRIVATE extern void update_sentinel_flags(pool_header_t *head);
+[[gnu::visibility("hidden")]]
+extern void update_sentinel_flags(pool_header_t *head);
 
 
 /**
@@ -130,7 +131,8 @@ ATTR_PRIVATE extern void update_sentinel_flags(pool_header_t *head);
  * @param hdl the handle to checksum.
  * @return returns true if checksum with the handle and entry is true, and false if not.
  */
-ATTR_PRIVATE extern bool handle_generation_checksum(const struct Arena_Handle *restrict hdl);
+[[gnu::visibility("hidden")]]
+extern bool handle_generation_checksum(const syn_handle_t *restrict hdl);
 
 
 /**
@@ -138,10 +140,11 @@ ATTR_PRIVATE extern bool handle_generation_checksum(const struct Arena_Handle *r
  *
  * @param hdl The handle to update the table generation.
  */
-ATTR_PRIVATE extern void update_table_generation(const struct Arena_Handle *restrict hdl);
-
-ATTR_PRIVATE extern void table_destructor();
-
-ATTR_PRIVATE extern void pool_destructor();
+[[gnu::visibility("hidden")]]
+extern void update_table_generation(const syn_handle_t *restrict hdl);
+[[gnu::visibility("hidden")]]
+extern void table_destructor();
+[[gnu::visibility("hidden")]]
+extern void pool_destructor();
 
 #endif //ARENA_ALLOCATOR_ALLOC_UTILS_H

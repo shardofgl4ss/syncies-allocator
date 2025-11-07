@@ -49,7 +49,7 @@ enum Header_Flags : u16 {
  *
  *	@details
  *	Each header can handle a maximum of a 128KiB page, and ideally a minimum of 128 bytes.
- *	Any less than 128 bytes for an allocation and the slab should be used.
+ *	Any less than 128 bytes for an allocation and the slab (WIP) should be used.
  *	Any more than 128KiB and dedicated pools shall be used.
  *	@details
  *	The next header is obtained by doing @code PD_HEAD_SIZE + head->size @endcode
@@ -60,41 +60,46 @@ enum Header_Flags : u16 {
  *	@details
  *	The block_flag variable is an 8-bit bitmap corresponding to the Header_Flags flag types. Operations for bitmaps:
  *	@details
- *	To write flags:			@code block_flag |= FLAG; @endcode
+ *	To write flags:			@code bitflags |= FLAG; @endcode
  *	@details
- *	To write multiple flags:	@code block_flag |= FLAG1 | FLAG2; @endcode
+ *	To write multiple flags:	@code bitflags |= FLAG1 | FLAG2; @endcode
  *	@details
- *	To read flags:			@code block_flag & FLAG; @endcode
+ *	To read flags:			@code bitflags & FLAG; @endcode
  *	@details
- *	To toggle a flag:		@code block_flag ^= FLAG; @endcode
+ *	To toggle a flag:		@code bitflags ^= FLAG; @endcode
  *	@details
- *	To clear a flag:		@code block_flag &= ~FLAG; @endcode
+ *	To clear a flag:		@code bitflags &= ~FLAG; @endcode
  *	@details
- *	To clear multiple flags:	@code block_flag &= ~(FLAG1 | FLAG2); @endcode
+ *	To clear multiple flags:	@code bitflags &= ~(FLAG1 | FLAG2); @endcode
+ *
+ * 	@note
+ * 	The pool header could easily be reduced down to 8 bytes, however, this
+ * 	would break preservation of the second and third members of the struct
+ *	during casting, and add extra complexity of tracking the true block size,
+ *	and on top of that, would also probably add unfixable fragmentation.
  */
 typedef struct Pool_Header {
+	u64 handle_idx;		/**< Index to the header's handle.		*/
 	u32 size;		/**< Size of the block in front of the header.	*/
-	u16 handle_idx;		/**< Index to the header's handle.		*/
-	//u32 prev_size;	/**< Size of the previous header block.		*/
-	bit16 bitflags;		/**< Enum bitmap for flags.			*/
+	bit32 bitflags;		/**< Enum bitmap for flags.			*/
 } pool_header_t;
 
 /**
- * 	Freed memory pool block header.
+ * 	Freed memory pool block header. in a singly-linked-list style.
  *
- *	@details
- *	The offset of each variable and header for both normal and freed headers,
- *	makes flags persist through casting between free and non-free. However,
- *	other variables will be broken, so it is a requirement to make a temporary
- *	buffer to store allocated_head->size.
+ * 	@details
+ * 	Casting a header to and from pool_free_header_t and pool_header_t,
+ * 	will preserve size and bitflags, but not preserve pool_free_node_t's 
+ * 	next_free or pool_header_t's handle_idx.
+ *
  *	@details
  *	see Pool_Header for more details.
  */
-typedef struct Pool_Free_Header {
-	struct Pool_Free_Header *next_free;
+typedef struct Pool_Free_Node {
+	struct Pool_Free_Node *next_free;
 	u32 size;
 	bit32 bitflags;
-} pool_free_header_t;
+} pool_free_node_t;
 
 /**
  * 	Extended pool header, for use in the huge page pools only.
@@ -109,10 +114,10 @@ typedef struct Pool_Free_Header {
  *	Refer to the normal header struct doc for more information.
  */
 typedef struct Pool_Header_Ext {
-	usize size;		/**< Size of the block in front of the header.	*/
-	usize prev_block_size;	/**< Size of the previous header block.		*/
-	u32 handle_idx;		/**< Index to the header's handle.		*/
-	bit32 block_flags;	/**< Flag-enum bitmap of the header.		*/
+	u64 size;		/**< Size of the block in front of the header.	*/
+	u64 prev_block_size;	/**< Size of the previous header block.		*/
+	u64 handle_idx;		/**< Index to the header's handle.		*/
+	bit64 block_flags;	/**< Flag-enum bitmap of the header.		*/
 } pool_header_ext_t;
 
 /**
@@ -128,7 +133,7 @@ typedef struct Memory_Pool {
 	void *mem;			/**< Pointer to the heap region.			*/
 	struct Memory_Pool *next_pool;	/**< Pointer to the next pool.				*/
 	struct Memory_Pool *prev_pool;	/**< Pointer to the previous pool.			*/
-	pool_free_header_t *first_free;	/**< Pointer to the first freed header.			*/
+	pool_free_node_t *first_free;	/**< Pointer to the first freed header.			*/
 	u32 size;			/**< Maximum allocated size for this pool in bytes.	*/
 	u32 offset;			/**< How much space has been used so far in bytes.	*/
 	u32 free_count;			/**< How many freed headers there are in this pool.	*/
@@ -234,7 +239,7 @@ static constexpr u32 HEAD_DEADZONE = 0xDEADDEADU;
 static constexpr u16 PD_ARENA_SIZE = (sizeof(arena_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_POOL_SIZE = (sizeof(memory_pool_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HEAD_SIZE = (sizeof(pool_header_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_FREE_PH_SIZE = (sizeof(pool_free_header_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_FREE_PH_SIZE = (sizeof(pool_free_node_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HANDLE_SIZE = (sizeof(syn_handle_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_TABLE_SIZE = (sizeof(handle_table_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);

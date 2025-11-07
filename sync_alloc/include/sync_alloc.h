@@ -7,21 +7,22 @@
 
 #include "defs.h"
 #include "structs.h"
-#include <string.h>
+#include "syn_memops.h"
+#include "types.h"
 
 // clang-format off
 typedef enum {
 	ALLOC_SENSITIVE,
 	ALLOC_ZEROED,
 	ALLOC_FROZEN,
-} Raw_Alloc_Flags;
+} raw_alloc_flags_t;
 
 typedef enum {
 	SYN_OK		   = 0,
 	SYN_HEADER_CORRUPT = 1 << 0,
 	SYN_ARENA_CORRUPT  = 1 << 1,
 	SYN_HANDLE_CORRUPT = 1 << 2,
-} Corruption_Integrity;
+} corruption_integrity_t;
 // clang-format on
 
 /// @brief Destroys a whole arena, deallocating it.
@@ -54,13 +55,13 @@ extern int syn_check_integrity(struct Arena_Handle *user_hdl);
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 [[nodiscard, gnu::visibility("default")]]
-extern struct Arena_Handle syn_alloc(usize size);
+extern syn_handle_t syn_alloc(usize size);
 
 
 [[nodiscard, gnu::visibility("default")]]
-inline static struct Arena_Handle syn_calloc(usize size) {
-	struct Arena_Handle hdl = syn_alloc(size);
-	memset(hdl.addr, 0, hdl.header->size - PD_HEAD_SIZE - DEADZONE_PADDING);
+inline static syn_handle_t syn_calloc(const usize size) {
+	const syn_handle_t hdl = syn_alloc(size);
+	syn_memset(hdl.addr, 0, hdl.header->size - PD_HEAD_SIZE - DEADZONE_PADDING);
 	return hdl;
 }
 
@@ -84,7 +85,7 @@ extern void syn_reset();
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 [[gnu::visibility("default")]]
-extern void syn_free(struct Arena_Handle *user_handle);
+extern void syn_free(syn_handle_t *user_handle);
 
 
 /**
@@ -98,7 +99,7 @@ extern void syn_free(struct Arena_Handle *user_handle);
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 [[gnu::visibility("default")]]
-extern int syn_realloc(struct Arena_Handle *user_handle, usize size);
+extern int syn_realloc(syn_handle_t *user_handle, usize size);
 
 
 /**
@@ -109,7 +110,7 @@ extern int syn_realloc(struct Arena_Handle *user_handle, usize size);
  * @warning If the arena_thread is NULL, the library will terminate.
  */
 [[nodiscard, gnu::visibility("default")]]
-extern void *syn_freeze(struct Arena_Handle *user_handle);
+extern void *syn_freeze(syn_handle_t *user_handle);
 
 
 /**
@@ -119,6 +120,6 @@ extern void *syn_freeze(struct Arena_Handle *user_handle);
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 [[gnu::visibility("default")]]
-extern void syn_thaw(struct Arena_Handle *user_handle);
+extern void syn_thaw(const syn_handle_t *user_handle);
 
 #endif //ARENA_ALLOCATOR_ALLOC_LIB_H

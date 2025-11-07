@@ -10,7 +10,7 @@
 
 
 [[gnu::visibility("hidden")]]
-typedef struct header_ctx header_ctx;
+typedef struct Header_Context header_context_t;
 
 /**
  * Creates a new block header
@@ -23,7 +23,7 @@ typedef struct header_ctx header_ctx;
  * @note The header is set as ALLOCATED by default.
  */
 [[gnu::visibility("hidden")]]
-extern pool_header_t *mempool_create_header(const header_ctx *restrict ctx, intptr offset);
+extern pool_header_t *mempool_create_header(const header_context_t *restrict ctx, intptr offset);
 
 
 /**
@@ -37,6 +37,6 @@ extern pool_header_t *mempool_create_header(const header_ctx *restrict ctx, intp
  * It will only happen if all pools cannot fit the allocation AND mmap fails.
  */
 [[gnu::visibility("hidden")]]
-extern pool_header_t *find_or_create_new_pool_block(u32 requested_size);
+extern pool_header_t *find_or_create_new_header(u32 requested_size);
 
 #endif //ARENA_ALLOCATOR_INTERNAL_ALLOC_H

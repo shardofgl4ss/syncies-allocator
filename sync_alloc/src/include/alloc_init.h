@@ -12,7 +12,6 @@
 /// @return 0 on success, -1 on failure.
 ///
 /// @warning The arena ptr in TLS will be a nullptr if there is not enough memory.
-/// If this happens, the library will terminate.
 [[gnu::visibility("hidden")]]
 extern int arena_init();
 

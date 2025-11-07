@@ -15,7 +15,11 @@
 // void
 // defragment_pool(Memory_Pool *pool);
 
-inline int bad_alloc_check(const struct Arena_Handle *restrict hdl, const int do_checksum) {
+
+
+
+inline int bad_alloc_check(const struct Arena_Handle *restrict hdl, const int do_checksum)
+{
 	if (arena_thread == nullptr) {
 		syn_panic("core arena context was lost!\n");
 	}
@@ -35,7 +39,8 @@ inline int bad_alloc_check(const struct Arena_Handle *restrict hdl, const int do
 }
 
 
-void update_sentinel_flags(pool_header_t *head) {
+void update_sentinel_flags(pool_header_t *head)
+{
 	const u32 prev_block_size = (u32)(*((char *)head - (DEADZONE_PADDING / 2)));
 	if (!(head->bitflags & PH_SENTINEL_F)) {
 		pool_header_t *prev_head = head - prev_block_size;
@@ -54,7 +59,8 @@ void update_sentinel_flags(pool_header_t *head) {
 }
 
 
-bool handle_generation_checksum(const struct Arena_Handle *restrict hdl) {
+bool handle_generation_checksum(const struct Arena_Handle *restrict hdl)
+{
 	const usize row = helper_return_matrix_row(hdl);
 	const usize col = helper_return_matrix_col(hdl);
 	const handle_table_t *table = arena_thread->first_hdl_tbl;
@@ -71,7 +77,8 @@ checksum:
 }
 
 
-void update_table_generation(const struct Arena_Handle *restrict hdl) {
+void update_table_generation(const struct Arena_Handle *restrict hdl)
+{
 	if (hdl == nullptr) {
 		return;
 	}
@@ -92,7 +99,8 @@ update_generation:
 }
 
 
-void table_destructor() {
+void table_destructor()
+{
 	handle_table_t *table_arr[arena_thread->table_count];
 	const int table_arr_len = return_table_array(table_arr);
 	if (table_arr_len == -1) {
@@ -109,7 +117,8 @@ void table_destructor() {
 }
 
 
-void pool_destructor() {
+void pool_destructor()
+{
 	memory_pool_t *pool_arr[arena_thread->pool_count];
 	const int pool_arr_len = return_pool_array(pool_arr);
 	for (int i = 0; i < pool_arr_len; i++) {

@@ -32,4 +32,5 @@ set(DEBUG_COMPILE_FLAGS
 	-g3
 	-Og
 	-std=c23
+	-march=native
 )

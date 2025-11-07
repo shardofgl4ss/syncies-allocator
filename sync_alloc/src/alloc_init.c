@@ -14,8 +14,8 @@
 #include <string.h>
 #include <unistd.h>
 
-
 _Thread_local arena_t *arena_thread = nullptr;
+
 
 int arena_init() {
 	void *raw_pool = helper_map_mem((MAX_FIRST_POOL_SIZE + (ALIGNMENT - 1)) & (usize) ~(ALIGNMENT - 1));
@@ -26,13 +26,11 @@ int arena_init() {
 
 	arena_thread = raw_pool;
 
-	/* Add the reserved_space directly to the mapping, then make the starting first_pool->mem	*
+	/* We add the reserved_space directly to the mapping, then make the starting first_pool->mem	*
 	 * after the reserved space, then just set pool_size to the FIRST_POOL_ALLOC.			*
-	 * This spoofs a max memory of POOL_SIZE when its actually POOL_SIZE - reserved. 		*
-	 * Alignment is added to the pool in case the user changes it to 16 or 32, it will be aligned.	*/
+	 * This spoofs a max memory of POOL_SIZE when its actually POOL_SIZE - reserved. 		*/
 
 	auto *first_pool = (memory_pool_t *)((char *)raw_pool + PD_ARENA_SIZE);
-
 	first_pool->mem = (void *)((char *)raw_pool + PD_RESERVED_F_SIZE + DEADZONE_PADDING);
 	auto *deadzone = (u64 *)((char *)first_pool->mem - DEADZONE_PADDING);
 	*deadzone = POOL_DEADZONE;
@@ -44,7 +42,7 @@ int arena_init() {
 
 	arena_thread->total_arena_bytes = (usize)MAX_FIRST_POOL_SIZE;
 	arena_thread->table_count = 0;
-	arena_thread->first_hdl_tbl = mempool_new_handle_table(arena_thread->first_hdl_tbl);
+	arena_thread->first_hdl_tbl = new_handle_table();
 	arena_thread->first_mempool = first_pool;
 	arena_thread->pool_count = 1;
 
@@ -53,16 +51,14 @@ int arena_init() {
 alloc_failure:
 	#ifdef ALLOC_DEBUG
 	sync_alloc_log.to_console(
-		log_stderr, "arena allocation failure! when you buy more ram, send some to your local protogen too!\n");
+		log_stderr,
+		"OOM, when you buy more ram, send some to your local protogen too!\n");
 	#endif
 	return 1;
 }
 
-memory_pool_t *pool_init(const u32 size) {
-	if (arena_thread == nullptr) {
-		syn_panic("arena_thread was nullptr at: pool_init()!\n");
-	}
 
+memory_pool_t *pool_init(const u32 size) {
 	usize padded_size = helper_add_padding(size);
 	void *heap_base = helper_map_mem(padded_size);
 
@@ -92,6 +88,7 @@ memory_pool_t *pool_init(const u32 size) {
 
 	return new_pool;
 }
+
 
 _Noreturn void syn_panic(const char *panic_msg) {
 	const char *prefix = "SYNC ALLOC [PANIC] ";

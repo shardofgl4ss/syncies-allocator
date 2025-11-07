@@ -5,15 +5,13 @@
 #ifndef ARENA_ALLOCATOR_DEFS_H
 #define ARENA_ALLOCATOR_DEFS_H
 
-// clang-format off
-
 #if !defined(__linux__)
 	#warning warning: sync_alloc is not supported on platforms except for Linux.
 #endif
 
-#if !defined(__x86_64__)
-	static_assert(0, "sync_alloc requires 64 bit x86 architecture.");
-#endif
+//#if !defined(__x86_64__)
+//	static_assert(0, "sync_alloc requires 64 bit x86 architecture.");
+//#endif
 
 /* moving away from normal gnu attrs because I literally cannot figure out			*
  * where and when to place normal gnu attrs. Will use C23 double-bracket attrs from now on,	*
@@ -51,8 +49,6 @@
 	#define ATTR_NOTHROW
 #endif
 
-// clang-format on
-
 /*
  * If its not in multiples of 8, problem big yes very.
  *
@@ -61,17 +57,31 @@
  * 32-byte alignment is optimal for AVX instructions.
  * 64-byte alignment is optimal for AVX512 instructions.
  */
+// TODO actually make alignment align instead of add padding.
 #ifndef ALIGNMENT
 	#define	ALIGNMENT 8
 #endif
 
+#define PADDING 8
 #define MIN_ALIGN 8
 #define MAX_ALIGN 64
 
 static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) && (ALIGNMENT <= MAX_ALIGN)) != 0,
 	      "ALIGNMENT must be either 8, 16, 32 or 64!\n");
 
-// #define ALLOC_DEBUG 1
+#include <stdint.h>
+
+#define ADD_PADDING(x) \
+	(((x) + (PADDING - 1)) & (u64) ~(PADDING - 1))
+#define ADD_ALIGNMENT_PADDING(x) \
+	(((x) + (ALIGNMENT - 1)) & (u64) ~(ALIGNMENT - 1))
+#define ALIGN_PTR(ptr) \
+	((void *)((uintptr_t)(ptr) + ((ALIGNMENT - 1)) & ~(uintptr_t)((ALIGNMENT) - 1)))
+#define IS_ALIGNED(ptr, align) \
+	(((uintptr_t)(ptr) & ((align) - 1)) == 0)
+
+
+#define ALLOC_DEBUG 1
 
 #define DEADZONE_PADDING sizeof(u64)
 

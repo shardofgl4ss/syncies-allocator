@@ -1,51 +1,61 @@
-#include "sync_alloc.h"
+#include "syn_memops.h"
+#include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
+static constexpr int upper_limit = 1000;
+static constexpr int lower_limit = 10;
 
-int
-main(void)
+void test_memcpy()
 {
-
-	for (int i = 0; i < 10; i++)
-	{
-		printf("iteration %d\n", i);
-
-		constexpr int z = 32;
-		struct Arena_Handle hdl = syn_alloc(z);
-		char *msg = syn_freeze(&hdl);
-
-		msg = "beepbeepbeepbeepbeepbeepbeepbee\n";
-		printf("%s 1\n", msg);
-
-		syn_thaw(&hdl);
-		struct Arena_Handle hdl2 = syn_alloc(z * 2);
-		char *msg2 = syn_freeze(&hdl2);
-
-		printf("hello world2\n");
-		msg2 = "beepbeepbeepbeepbeepbeepbeepbeep\n";
-
-		printf("%s 2\n", msg2);
-
-
-		syn_thaw(&hdl2);
-		struct Arena_Handle hdl3 = syn_alloc(z * 2);
-		char *msg3 = syn_freeze(&hdl3);
-
-		printf("hello world3\n");
-
-		msg3 = "beepbeepbeepbeepbeepbeepbeepbeep\n";
-		printf("%s 3\n", msg3);
-
-		syn_thaw(&hdl3);
-		struct Arena_Handle hdl4 = syn_alloc(z);
-		char *msg4 = syn_freeze(&hdl4);
-
-		printf("hello world4\n");
-		msg4 = "beepbeepbeepbeepbeepbeepbeepbeep\n";
-
-		printf("%s 4\n", msg4);
-
-		syn_thaw(&hdl4);
-		syn_free_all();
+	srand(time(nullptr));
+	const int rand_value = rand() % ((upper_limit - lower_limit + 1) + lower_limit);
+	char a[rand_value + 1];
+	char b[rand_value + 1];
+	for (int i = 0; i < rand_value; i++) {
+		a[i] = 'a';
 	}
+	a[rand_value] = '\0';
+	syn_memcpy(b, a, rand_value);
+	b[rand_value] = '\0';
+	if (strcmp(a, b) == 0) {
+		printf("arrays are equal\n");
+		fflush(stdout);
+	}
+	else {
+		printf("arrays differ!\n");
+	}
+	assert(!strcmp(a, b));
+}
+
+
+void test_memset()
+{
+	srand(time(nullptr));
+	const int rand_value = rand() % ((upper_limit - lower_limit + 1) + lower_limit);
+	char a[rand_value + 1];
+	char b[rand_value + 1];
+	for (int i = 0; i < rand_value; i++) {
+		a[i] = 'a';
+	}
+	a[rand_value] = '\0';
+	syn_memset(b, 'a', rand_value);
+	b[rand_value] = '\0';
+	if (strcmp(a, b) == 0) {
+		printf("arrays are equal\n");
+		fflush(stdout);
+	}
+	else {
+		printf("arrays differ!\n");
+	}
+	assert(!strcmp(a, b));
+}
+
+
+int main()
+{
+	test_memcpy();
+	test_memset();
 }
