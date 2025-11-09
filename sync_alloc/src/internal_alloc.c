@@ -5,60 +5,85 @@
 #include "internal_alloc.h"
 #include "alloc_utils.h"
 #include "defs.h"
-#include "helper_functions.h"
 #include "structs.h"
 #include "types.h"
+#include <stdint.h>
+
+enum {
+	LINEAR_OFFSET = 2,
+};
 
 typedef struct Header_Context {
 	memory_pool_t *pool;
 	memory_pool_t **pool_array;
 	pool_header_t **null_head;
 	u32 num_bytes;
-} header_context_t;
+	u8 jump_table_index;
+} __attribute__((aligned(32))) header_context_t;
 
 inline static i32 zero_offset_header(const header_context_t *restrict ctx);
 inline static i32 linear_offset_header(const header_context_t *restrict ctx);
 inline static i32 free_list_header(const header_context_t *restrict ctx);
 typedef i32 (*header_type_jumptable_t)(const header_context_t *restrict ctx);
 
-/* This is in order from top to bottom which will be tried first.	*
- * The second and third functions in the jt can be 			*
- * swapped, but zero_offset_header() should be first,			*
- * as the other ones expect offset > 0.					*/
-
 header_type_jumptable_t header_jumptable[] = {
 	zero_offset_header,
-	linear_offset_header,
 	free_list_header,
+	linear_offset_header,
 };
 
-static constexpr u32 jumptable_last_index = (sizeof(header_jumptable) / sizeof(header_jumptable[0])) - 1;
+static constexpr u32 JUMPTABLE_LAST_INDEX = (sizeof(header_jumptable) / sizeof(header_jumptable[0])) - 1;
+// clang-format off
 
-
-pool_header_t *mempool_create_header(const header_context_t *restrict ctx, const intptr offset)
+pool_header_t *mempool_create_header(const header_context_t *restrict ctx, const uintptr_t offset)
 {
-	const bool pool_has_no_space_left = (ctx->pool->size - ctx->pool->offset)
-	                                 < (helper_add_padding(ctx->num_bytes)
+	if (ctx->jump_table_index != LINEAR_OFFSET) {
+		goto skip_space_check;
+	}
+	const bool pool_has_no_space_left = (ctx->pool->size - offset)
+	                                  < (ADD_ALIGNMENT_PADDING(ctx->num_bytes)
 	                                    + PD_HEAD_SIZE
 	                                    + DEADZONE_PADDING);
+	
+	// clang-format on
 	if (pool_has_no_space_left) {
 		return nullptr;
 	}
 
-	// just for show, the way this is added is actually the memory layout of each header-alloc-pad.
-	const u32 chunk_size = (u32)helper_add_padding(PD_HEAD_SIZE + ctx->num_bytes + DEADZONE_PADDING);
-	auto *head = (pool_header_t *)((char *)ctx->pool->mem + offset);
+skip_space_check:
+	auto *head = (pool_header_t *)((u8 *)ctx->pool->mem + offset);
 
-	head->size = chunk_size;
+	const uintptr_t relative_alignment_offset = ALIGN_PTR(head, ALIGNMENT) - (uintptr_t)head;
+	const u32 chunk_size = ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING + relative_alignment_offset;
+	const u32 pad_chunk_size = ADD_ALIGNMENT_PADDING(chunk_size);
+
+	head->allocation_size = ctx->num_bytes;
+	head->chunk_size = pad_chunk_size;
 	head->handle_idx = 0;
-	head->bitflags |= PH_ALLOCATED;
+	head->bitflags |= (ctx->pool->offset == 0)
+	                  ? F_ALLOCATED | F_FIRST_HEAD
+	                  : F_ALLOCATED;
 
-	auto *deadzone = (u64 *)((char *)head + chunk_size - DEADZONE_PADDING);
-	*deadzone = HEAD_DEADZONE;
-	deadzone = deadzone + (DEADZONE_PADDING / 2);
-	*deadzone = head->size;
+	u32 *deadzone = (u32 *)((u8 *)head + (pad_chunk_size - DEADZONE_PADDING));
+	*deadzone++ = HEAD_DEADZONE;
+	*deadzone = head->chunk_size;
 
-	ctx->pool->offset += chunk_size;
+	if (offset == ctx->pool->offset) {
+		ctx->pool->offset += pad_chunk_size;
+
+		if (ctx->pool->offset + PD_HEAD_SIZE > ctx->pool->size) {
+			head->bitflags |= F_SENTINEL; // head becomes sentinel if there is not enough space
+			goto done;
+		}
+
+		auto *sentinel_head = (pool_header_t *)((u8 *)ctx->pool->mem + ctx->pool->offset);
+
+		sentinel_head->chunk_size = PD_HEAD_SIZE;
+		sentinel_head->allocation_size = 0;
+		sentinel_head->handle_idx = 0;
+		sentinel_head->bitflags |= F_SENTINEL | F_FROZEN;
+	}
+done:
 	return head;
 }
 
@@ -73,7 +98,7 @@ inline static i32 zero_offset_header(const header_context_t *restrict ctx)
 		return 1;
 	}
 	*ctx->null_head = mempool_create_header(ctx, 0);
-	if (*ctx->null_head == nullptr) {
+	if (*ctx[0].null_head == nullptr) {
 		return 1;
 	}
 	return 0;
@@ -82,8 +107,15 @@ inline static i32 zero_offset_header(const header_context_t *restrict ctx)
 
 inline static i32 linear_offset_header(const header_context_t *restrict ctx)
 {
-	if (ctx->pool == nullptr || ctx->pool->offset == 0 || ctx->pool->offset + ctx->num_bytes + PD_HEAD_SIZE +
-	    DEADZONE_PADDING > ctx->pool->size) {
+	const bool pool_is_invalid = (ctx->pool == nullptr || ctx->pool->offset == 0) != 0;
+	if (pool_is_invalid) {
+		return 1;
+	}
+	const bool pool_out_of_space = (ctx->pool->offset
+	                                + ctx->num_bytes
+	                                + PD_HEAD_SIZE
+	                                + DEADZONE_PADDING > ctx->pool->size) != 0;
+	if (pool_out_of_space) {
 		return 1;
 	}
 	*ctx->null_head = mempool_create_header(ctx, ctx->pool->offset);
@@ -146,7 +178,8 @@ i32 find_new_header(header_context_t *restrict ctx)
 
 	for (int i = 0; i < pool_arr_len; i++) {
 		ctx->pool = pool_arr[i];
-		for (int j = 0; j < jumptable_last_index; j++) {
+		for (int j = 0; j < JUMPTABLE_LAST_INDEX; j++) {
+			ctx->jump_table_index = j;
 			if (header_jumptable[j](ctx) == 0) {
 				return j + 1; // + 1 so it starts at 1 instead of 0
 			}
@@ -168,11 +201,13 @@ pool_header_t *find_or_create_new_header(const u32 requested_size)
 		.pool_array = nullptr,
 		.null_head = &new_head,
 		.num_bytes = requested_size,
+		.jump_table_index = 0,
 	};
 
 	const int ret = find_new_header(&ctx);
 	if (ret == 0 || new_head == nullptr) {
 		return nullptr;
 	}
+	update_sentinel_and_free_flags(new_head);
 	return new_head;
 }

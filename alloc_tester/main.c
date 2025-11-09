@@ -1,61 +1,79 @@
-#include "syn_memops.h"
+
+#include "structs.h"
+#include "sync_alloc.h"
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
-static constexpr int upper_limit = 1000;
-static constexpr int lower_limit = 10;
+//#include "syn_memops.h"
+//#include <stdlib.h>
+//#include <string.h>
+//#include <time.h>
+//static constexpr int upper_limit = 1000;
+//static constexpr int lower_limit = 10;
 
-void test_memcpy()
-{
-	srand(time(nullptr));
-	const int rand_value = rand() % ((upper_limit - lower_limit + 1) + lower_limit);
-	char a[rand_value + 1];
-	char b[rand_value + 1];
-	for (int i = 0; i < rand_value; i++) {
-		a[i] = 'a';
-	}
-	a[rand_value] = '\0';
-	syn_memcpy(b, a, rand_value);
-	b[rand_value] = '\0';
-	if (strcmp(a, b) == 0) {
-		printf("arrays are equal\n");
-		fflush(stdout);
-	}
-	else {
-		printf("arrays differ!\n");
-	}
-	assert(!strcmp(a, b));
+//void test_memcpy();
+//void test_memset();
+
+typedef struct String {
+	char *data;
+	unsigned int length;
+} __attribute__((aligned(16))) string_t;
+
+int main() {
+	const char *textdata = "beepbeepbeepbeepbeepbeepbeepbeep";
+	string_t string = {};
+	constexpr size_t size = 64;
+	syn_handle_t new_hdl = syn_calloc(size);
+	string.data = syn_freeze(&new_hdl);
+	memcpy(string.data, textdata, strlen(textdata));
+	printf("original: %s\nnew: %s\n", textdata, string.data);
+	syn_thaw(&new_hdl);
+	syn_free(&new_hdl);
+	syn_destroy();
 }
 
-
-void test_memset()
-{
-	srand(time(nullptr));
-	const int rand_value = rand() % ((upper_limit - lower_limit + 1) + lower_limit);
-	char a[rand_value + 1];
-	char b[rand_value + 1];
-	for (int i = 0; i < rand_value; i++) {
-		a[i] = 'a';
-	}
-	a[rand_value] = '\0';
-	syn_memset(b, 'a', rand_value);
-	b[rand_value] = '\0';
-	if (strcmp(a, b) == 0) {
-		printf("arrays are equal\n");
-		fflush(stdout);
-	}
-	else {
-		printf("arrays differ!\n");
-	}
-	assert(!strcmp(a, b));
-}
-
-
-int main()
-{
-	test_memcpy();
-	test_memset();
-}
+//void test_memcpy()
+//{
+//	srand(time(nullptr));
+//	const int rand_value = rand() % ((upper_limit - lower_limit + 1) + lower_limit);
+//	char a[rand_value + 1];
+//	char b[rand_value + 1];
+//	for (int i = 0; i < rand_value; i++) {
+//		a[i] = 'a';
+//	}
+//	a[rand_value] = '\0';
+//	syn_memcpy(b, a, rand_value);
+//	b[rand_value] = '\0';
+//	if (strcmp(a, b) == 0) {
+//		printf("arrays are equal\n");
+//		fflush(stdout);
+//	}
+//	else {
+//		printf("arrays differ!\n");
+//	}
+//	assert(!strcmp(a, b));
+//}
+//
+//
+//void test_memset()
+//{
+//	srand(time(nullptr));
+//	const int rand_value = rand() % ((upper_limit - lower_limit + 1) + lower_limit);
+//	char a[rand_value + 1];
+//	char b[rand_value + 1];
+//	for (int i = 0; i < rand_value; i++) {
+//		a[i] = 'a';
+//	}
+//	a[rand_value] = '\0';
+//	syn_memset(b, 'a', rand_value);
+//	b[rand_value] = '\0';
+//	if (strcmp(a, b) == 0) {
+//		printf("arrays are equal\n");
+//		fflush(stdout);
+//	}
+//	else {
+//		printf("arrays differ!\n");
+//	}
+//	assert(!strcmp(a, b));
+//}

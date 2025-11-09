@@ -5,11 +5,11 @@
 #ifndef ARENA_ALLOCATOR_DEFS_H
 #define ARENA_ALLOCATOR_DEFS_H
 
-#if !defined(__linux__)
+#ifndef __linux__
 	#warning warning: sync_alloc is not supported on platforms except for Linux.
 #endif
 
-//#if !defined(__x86_64__)
+//#ifndef __x86_64__
 //	static_assert(0, "sync_alloc requires 64 bit x86 architecture.");
 //#endif
 
@@ -69,20 +69,19 @@
 static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) && (ALIGNMENT <= MAX_ALIGN)) != 0,
 	      "ALIGNMENT must be either 8, 16, 32 or 64!\n");
 
-#include <stdint.h>
-
 #define ADD_PADDING(x) \
-	(((x) + (PADDING - 1)) & (u64) ~(PADDING - 1))
+	(((x) + (PADDING - 1)) & (typeof(x))~(PADDING - 1))
 #define ADD_ALIGNMENT_PADDING(x) \
-	(((x) + (ALIGNMENT - 1)) & (u64) ~(ALIGNMENT - 1))
-#define ALIGN_PTR(ptr) \
-	((void *)((uintptr_t)(ptr) + ((ALIGNMENT - 1)) & ~(uintptr_t)((ALIGNMENT) - 1)))
+	(((x) + (ALIGNMENT - 1)) & (typeof(x))~(ALIGNMENT - 1))
+#define BLOCK_ALIGN_PTR(head, align) \
+	((((uintptr_t)(head) + PD_HEAD_SIZE) + ((align) - 1)) & ~((align) - 1))
+	//(void *)((((char *)(head) + PD_HEAD_SIZE)) + ((align) - 1)) & ~((align) - 1))
+#define ALIGN_PTR(ptr, align) \
+	((((uintptr_t)(ptr)) + ((align) - 1)) & ~((align) - 1))
 #define IS_ALIGNED(ptr, align) \
-	(((uintptr_t)(ptr) & ((align) - 1)) == 0)
-
+	(((char *)(ptr) & ((align) - 1)) == 0)
 
 #define ALLOC_DEBUG 1
-
 #define DEADZONE_PADDING sizeof(u64)
 
 #define KIBIBYTE 1024

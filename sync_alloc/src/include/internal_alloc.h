@@ -7,6 +7,7 @@
 
 #include "structs.h"
 #include "types.h"
+#include <stdint.h>
 
 
 [[gnu::visibility("hidden")]]
@@ -23,7 +24,7 @@ typedef struct Header_Context header_context_t;
  * @note The header is set as ALLOCATED by default.
  */
 [[gnu::visibility("hidden")]]
-extern pool_header_t *mempool_create_header(const header_context_t *restrict ctx, intptr offset);
+extern pool_header_t *mempool_create_header(const header_context_t *restrict ctx, uintptr_t offset);
 
 
 /**

@@ -6,6 +6,7 @@
 #define ARENA_ALLOCATOR_ALLOC_INIT_H
 
 #include "structs.h"
+#include "types.h"
 
 
 /// @brief Creates a new arena in thread-local storage. Each thread must create its own arena.

@@ -17,10 +17,11 @@ typedef struct Handle_Context {
 	handle_table_t **table_arr;
 	i32 max_table_array_index;
 	i32 current_index;
-} handle_context_t;
+} __attribute__((aligned(16))) handle_context_t;
 
 
-handle_table_t *new_handle_table() {
+handle_table_t *new_handle_table()
+{
 	handle_table_t *new_tbl = helper_map_mem(PD_HDL_MATRIX_SIZE);
 	if (!new_tbl) {
 		return nullptr;
@@ -30,7 +31,8 @@ handle_table_t *new_handle_table() {
 	if (no_first_table) {
 		arena_thread->first_hdl_tbl = new_tbl;
 		new_tbl->next_table = nullptr;
-	} else {
+	}
+	else {
 		handle_table_t *table_array[arena_thread->table_count];
 		const i32 max_array_length = return_table_array(table_array);
 		table_array[max_array_length - 1]->next_table = new_tbl;
@@ -43,11 +45,12 @@ handle_table_t *new_handle_table() {
 }
 
 
-static i32 find_non_empty_table(handle_context_t *ctx) {
+static i32 find_non_empty_table(handle_context_t *ctx)
+{
 	bool retried = false;
 reloop:
 	for (; ctx->current_index < ctx->max_table_array_index; ctx->current_index++) {
-		handle_table_t *current_table = ctx->table_arr[ctx->current_index];
+		const handle_table_t *current_table = ctx->table_arr[ctx->current_index];
 		if (stdc_count_ones_ull(current_table->entries_bitmap) != MAX_TABLE_HNDL_COLS) {
 			return ctx->current_index;
 		}
@@ -67,7 +70,9 @@ reloop:
 	goto reloop;
 }
 
-syn_handle_t create_handle_and_entry(pool_header_t *restrict head) {
+
+syn_handle_t create_handle_and_entry(pool_header_t *head)
+{
 	handle_context_t ctx = {};
 
 	if (!arena_thread->table_count && !new_handle_table()) {
@@ -91,13 +96,17 @@ syn_handle_t create_handle_and_entry(pool_header_t *restrict head) {
 		return invalid_hdl();
 	}
 	free_handle_column--;
-	syn_handle_t new_hdl = non_empty_table->handle_entries[free_handle_column];
+	//syn_handle_t new_hdl = non_empty_table->handle_entries[free_handle_column];
 	non_empty_table->entries_bitmap |= (1ULL << free_handle_column);
 
-	new_hdl.header = head;
-	new_hdl.addr = helper_return_block_addr(head);
-	new_hdl.generation = 1;
-	new_hdl.handle_matrix_index = (arena_thread->table_count * MAX_TABLE_HNDL_COLS) + free_handle_column;
+	syn_handle_t new_hdl = {
+		new_hdl.addr = (void *)BLOCK_ALIGN_PTR(head, ALIGNMENT),
+		new_hdl.header = head,
+		new_hdl.generation = 1,
+		new_hdl.handle_matrix_index = (arena_thread->table_count * MAX_TABLE_HNDL_COLS) + free_handle_column,
+	};
+
+	table_arr[new_index]->handle_entries[free_handle_column] = new_hdl;
 
 	return new_hdl;
 }

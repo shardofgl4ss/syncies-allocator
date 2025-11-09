@@ -89,7 +89,7 @@ inline static int return_free_array(pool_free_node_t **arr, const memory_pool_t 
  */
 [[maybe_unused]]
 inline static bool corrupt_header_check(pool_header_t *restrict head) {
-	return (*(u64 *)((char *)head + (head->size - DEADZONE_PADDING)) != POOL_DEADZONE);
+	return (*(u32 *)((char *)head + (head->chunk_size - DEADZONE_PADDING)) != HEAD_DEADZONE);
 }
 
 /**
@@ -122,7 +122,7 @@ extern void defragment_pool(bool light_flag);
  * @param head The header to index.
  */
 [[gnu::visibility("hidden")]]
-extern void update_sentinel_flags(pool_header_t *head);
+extern void update_sentinel_and_free_flags(pool_header_t *head);
 
 
 /**
@@ -136,7 +136,7 @@ extern bool handle_generation_checksum(const syn_handle_t *restrict hdl);
 
 
 /**
- * Updated the entry's generation, usually after a free.
+ * Updates the entry's generation, usually after a free.
  *
  * @param hdl The handle to update the table generation.
  */

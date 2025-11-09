@@ -59,7 +59,7 @@ void debug_print_memory_usage() {
 		pool_count++;
 	}
 	while (header != nullptr) {
-		header = header + header->size;
+		header = header + header->chunk_size;
 		head_count++;
 	}
 
@@ -103,5 +103,5 @@ void debug_print_memory_usage() {
 	sync_alloc_log.to_console(log_stdout, "Total count of handle tables: %u\n", table_count);
 }
 
-debug_v_table_t sync_alloc_log = {.to_console = &log_to_console, .debug_print_all = &debug_print_memory_usage};
+debug_vtable_t sync_alloc_log = {.to_console = &log_to_console, .debug_print_all = &debug_print_memory_usage};
 

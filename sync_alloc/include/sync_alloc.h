@@ -5,10 +5,10 @@
 #ifndef ARENA_ALLOCATOR_ALLOC_LIB_H
 #define ARENA_ALLOCATOR_ALLOC_LIB_H
 
-#include "defs.h"
 #include "structs.h"
-#include "syn_memops.h"
 #include "types.h"
+
+typedef struct Syn_Handle syn_handle_t;
 
 // clang-format off
 typedef enum {
@@ -19,9 +19,9 @@ typedef enum {
 
 typedef enum {
 	SYN_OK		   = 0,
-	SYN_HEADER_CORRUPT = 1 << 0,
-	SYN_ARENA_CORRUPT  = 1 << 1,
-	SYN_HANDLE_CORRUPT = 1 << 2,
+	SYN_HEADER_CORRUPT = (1 << 0),
+	SYN_ARENA_CORRUPT  = (1 << 1),
+	SYN_HANDLE_CORRUPT = (1 << 2),
 } corruption_integrity_t;
 // clang-format on
 
@@ -29,9 +29,10 @@ typedef enum {
 /// @note If the arena_thread is NULL, this function does nothing.
 /// @warning Each thread has its own arena.\n If multithreading, make sure to have all threads destroy their own arena.
 [[gnu::visibility("default")]]
-extern void syn_free_all();
+extern void syn_destroy();
 
 #ifdef SYN_ALLOC_DISABLE_SAFETY
+
 /// @brief Checks heap corruption in the allocator.
 /// @note Corruption is only checked around the user allocation, and at the base of each pool.\n
 /// This might be changed later to walk all headers and report all known corruption.
@@ -43,6 +44,7 @@ extern void syn_free_all();
 /// 3 if provided handle is corrupted or invalid.
 [[gnu::visibility("default")]]
 extern int syn_check_integrity(struct Arena_Handle *user_hdl);
+
 #endif
 
 /**
@@ -59,12 +61,7 @@ extern syn_handle_t syn_alloc(usize size);
 
 
 [[nodiscard, gnu::visibility("default")]]
-inline static syn_handle_t syn_calloc(const usize size) {
-	const syn_handle_t hdl = syn_alloc(size);
-	syn_memset(hdl.addr, 0, hdl.header->size - PD_HEAD_SIZE - DEADZONE_PADDING);
-	return hdl;
-}
-
+extern syn_handle_t syn_calloc(usize size);
 
 /**
  * @brief "Fake clears", or resets, all allocations. Less overhead then freeing all.
@@ -120,6 +117,6 @@ extern void *syn_freeze(syn_handle_t *user_handle);
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 [[gnu::visibility("default")]]
-extern void syn_thaw(const syn_handle_t *user_handle);
+extern void syn_thaw(syn_handle_t *user_handle);
 
 #endif //ARENA_ALLOCATOR_ALLOC_LIB_H
