@@ -243,14 +243,14 @@ typedef struct Debug_VTable {
 // TODO fix all usages of the new pool deadzone vs head deadzone.
 static constexpr u64 POOL_DEADZONE = 0xDEADDEADDEADDEADULL;
 static constexpr u32 HEAD_DEADZONE = 0xDEADDEADU;
-static constexpr u16 PD_ARENA_SIZE = (sizeof(arena_t) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_POOL_SIZE = (sizeof(memory_pool_t) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_HEAD_SIZE = (sizeof(pool_header_t) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_FREE_PH_SIZE = (sizeof(pool_free_node_t) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_HANDLE_SIZE = (sizeof(syn_handle_t) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_TABLE_SIZE = (sizeof(handle_table_t) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
-static constexpr u16 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
+static constexpr u16 PD_ARENA_SIZE = (sizeof(arena_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_POOL_SIZE = (sizeof(memory_pool_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HEAD_SIZE = (sizeof(pool_header_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_FREE_PH_SIZE = (sizeof(pool_free_node_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HANDLE_SIZE = (sizeof(syn_handle_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_TABLE_SIZE = (sizeof(handle_table_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HDL_MATRIX_SIZE =
-	((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE)) + (ALIGNMENT - 1)) & (u16) ~(ALIGNMENT - 1);
+		((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE)) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 
 #endif //ARENA_ALLOCATOR_STRUCTS_H

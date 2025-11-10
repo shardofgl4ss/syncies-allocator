@@ -22,7 +22,7 @@
 	#ifndef __clang__
 		#define ATTR_MALLOC(f, x) __attribute__((malloc(f, x)))
 	#else
-		// Clang doesn't have __attribute__((malloc(a, b))) yet :(
+// Clang doesn't have __attribute__((malloc(a, b))) yet :(
 		#define ATTR_MALLOC(f, x)
 	#endif
 	#define ATTR_ALLOC_SIZE(i) __attribute__ ((alloc_size (i)))
@@ -59,7 +59,7 @@
  */
 // TODO actually make alignment align instead of add padding.
 #ifndef ALIGNMENT
-	#define	ALIGNMENT 8
+	#define	ALIGNMENT 16
 #endif
 
 #define PADDING 8
@@ -67,7 +67,7 @@
 #define MAX_ALIGN 64
 
 static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) && (ALIGNMENT <= MAX_ALIGN)) != 0,
-	      "ALIGNMENT must be either 8, 16, 32 or 64!\n");
+              "ALIGNMENT must be either 8, 16, 32 or 64!\n");
 
 #define ADD_PADDING(x) \
 	(((x) + (PADDING - 1)) & (typeof(x))~(PADDING - 1))
@@ -75,7 +75,7 @@ static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) &&
 	(((x) + (ALIGNMENT - 1)) & (typeof(x))~(ALIGNMENT - 1))
 #define BLOCK_ALIGN_PTR(head, align) \
 	((((uintptr_t)(head) + PD_HEAD_SIZE) + ((align) - 1)) & ~((align) - 1))
-	//(void *)((((char *)(head) + PD_HEAD_SIZE)) + ((align) - 1)) & ~((align) - 1))
+//(void *)((((char *)(head) + PD_HEAD_SIZE)) + ((align) - 1)) & ~((align) - 1))
 #define ALIGN_PTR(ptr, align) \
 	((((uintptr_t)(ptr)) + ((align) - 1)) & ~((align) - 1))
 #define IS_ALIGNED(ptr, align) \

@@ -14,9 +14,29 @@
 
 extern _Thread_local arena_t *restrict arena_thread;
 
-void log_to_console(void (*log_and_stream)(const char *restrict format, va_list va_args),
+
+inline void log_stdout(const char *string, va_list arg_list)
+{
+	const char *prefix = "SYNC_ALLOC [LOG] ";
+	fputs(prefix, stdout);
+	vfprintf(stdout, string, arg_list);
+	fflush(stdout);
+}
+
+
+inline void log_stderr(const char *restrict string, va_list arg_list)
+{
+	const char *prefix = "SYNC_ALLOC [ERR] ";
+	fputs(prefix, stderr);
+	vfprintf(stderr, string, arg_list);
+	fflush(stderr);
+}
+
+
+void log_to_console(void(*log_and_stream)(const char *restrict format, va_list va_args),
 		    const char *restrict str,
-		    ...) {
+                     ...)
+{
 	/* I've heard it may be undefined to compare fptr's to functions, we'll see :3 */
 
 	if (str == nullptr) {
@@ -40,11 +60,13 @@ logger_start_failure:
 	sync_alloc_log.to_console(log_stderr, "logger failed to log!\n");
 }
 
-void debug_print_memory_usage() {
+
+void debug_print_memory_usage()
+{
 	const memory_pool_t *pool = arena_thread->first_mempool;
 	const pool_header_t *header = arena_thread->first_mempool->offset != 0
-					    ? (pool_header_t *)arena_thread->first_mempool->mem
-					    : nullptr;
+	                              ? (pool_header_t *)arena_thread->first_mempool->mem
+	                              : nullptr;
 	const handle_table_t *handle_table = arena_thread->first_hdl_tbl;
 
 	u64 pool_count = 0;
@@ -78,16 +100,15 @@ void debug_print_memory_usage() {
 			}
 			handle_table = handle_table->next_table;
 			table_count++;
-		}
-		while (handle_table->next_table != nullptr);
+		} while (handle_table->next_table != nullptr);
 	}
 
 	if (table_count != arena_thread->table_count) {
 		sync_alloc_log.to_console(
-			log_stderr,
-			"arena_thread's table count: \"%u\" does not match actual table count: \"%u\"!\n",
-			arena_thread->table_count,
-			table_count);
+		                          log_stderr,
+		                          "arena_thread's table count: \"%u\" does not match actual table count: \"%u\"!\n",
+		                          arena_thread->table_count,
+		                          table_count);
 	}
 
 	const u64 handle_bytes = handle_count * PD_HANDLE_SIZE;
@@ -103,5 +124,5 @@ void debug_print_memory_usage() {
 	sync_alloc_log.to_console(log_stdout, "Total count of handle tables: %u\n", table_count);
 }
 
-debug_vtable_t sync_alloc_log = {.to_console = &log_to_console, .debug_print_all = &debug_print_memory_usage};
 
+debug_vtable_t sync_alloc_log = { .to_console = &log_to_console, .debug_print_all = &debug_print_memory_usage };

@@ -15,19 +15,15 @@
 //void test_memcpy();
 //void test_memset();
 
-typedef struct String {
-	char *data;
-	unsigned int length;
-} __attribute__((aligned(16))) string_t;
-
 int main() {
-	const char *textdata = "beepbeepbeepbeepbeepbeepbeepbeep";
-	string_t string = {};
+	const char *textdata = "beepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbee";
 	constexpr size_t size = 64;
 	syn_handle_t new_hdl = syn_calloc(size);
-	string.data = syn_freeze(&new_hdl);
-	memcpy(string.data, textdata, strlen(textdata));
-	printf("original: %s\nnew: %s\n", textdata, string.data);
+	char *data = syn_freeze(&new_hdl);
+
+	memcpy(data, textdata, strlen(textdata) + 1);
+	printf("original: %s\nnew: %s\n", textdata, data);
+
 	syn_thaw(&new_hdl);
 	syn_free(&new_hdl);
 	syn_destroy();

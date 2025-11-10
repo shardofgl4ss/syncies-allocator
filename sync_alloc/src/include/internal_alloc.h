@@ -9,23 +9,7 @@
 #include "types.h"
 #include <stdint.h>
 
-
-[[gnu::visibility("hidden")]]
-typedef struct Header_Context header_context_t;
-
-/**
- * Creates a new block header
- *
- * @param ctx Internal context struct. Avoids having to pass around multiple variables multiple times.
- * @param offset How many bytes from the base of the pool.
- * @return a valid block header pointer.
- *
- * @warning Updates offset in the pool if successful.
- * @note The header is set as ALLOCATED by default.
- */
-[[gnu::visibility("hidden")]]
-extern pool_header_t *mempool_create_header(const header_context_t *restrict ctx, uintptr_t offset);
-
+// wow this header sure is empty
 
 /**
  * Analyzes the header-block chain, making a new header if there is no free one to use.

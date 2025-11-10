@@ -44,14 +44,14 @@ pool_header_t *mempool_create_header(const header_context_t *restrict ctx, const
 	                                  < (ADD_ALIGNMENT_PADDING(ctx->num_bytes)
 	                                    + PD_HEAD_SIZE
 	                                    + DEADZONE_PADDING);
-	
+
 	// clang-format on
 	if (pool_has_no_space_left) {
 		return nullptr;
 	}
 
 skip_space_check:
-	auto *head = (pool_header_t *)((u8 *)ctx->pool->mem + offset);
+	pool_header_t *head = (pool_header_t *)((u8 *)ctx->pool->mem + offset);
 
 	const uintptr_t relative_alignment_offset = ALIGN_PTR(head, ALIGNMENT) - (uintptr_t)head;
 	const u32 chunk_size = ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING + relative_alignment_offset;
@@ -76,7 +76,7 @@ skip_space_check:
 			goto done;
 		}
 
-		auto *sentinel_head = (pool_header_t *)((u8 *)ctx->pool->mem + ctx->pool->offset);
+		pool_header_t *sentinel_head = (pool_header_t *)((u8 *)ctx->pool->mem + ctx->pool->offset);
 
 		sentinel_head->chunk_size = PD_HEAD_SIZE;
 		sentinel_head->allocation_size = 0;
@@ -111,10 +111,10 @@ inline static i32 linear_offset_header(const header_context_t *restrict ctx)
 	if (pool_is_invalid) {
 		return 1;
 	}
-	const bool pool_out_of_space = (ctx->pool->offset
-	                                + ctx->num_bytes
-	                                + PD_HEAD_SIZE
-	                                + DEADZONE_PADDING > ctx->pool->size) != 0;
+	const bool pool_out_of_space = (ctx->pool->offset + ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING > ctx->pool
+	                                                                                                          ->
+	                                                                                                          size)
+	                               != 0;
 	if (pool_out_of_space) {
 		return 1;
 	}

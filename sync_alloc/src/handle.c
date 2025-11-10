@@ -5,7 +5,6 @@
 #include "handle.h"
 #include "alloc_utils.h"
 #include "defs.h"
-#include "helper_functions.h"
 #include "structs.h"
 #include "types.h"
 #include <stdbit.h>
@@ -22,7 +21,7 @@ typedef struct Handle_Context {
 
 handle_table_t *new_handle_table()
 {
-	handle_table_t *new_tbl = helper_map_mem(PD_HDL_MATRIX_SIZE);
+	handle_table_t *new_tbl = syn_map_page(PD_HDL_MATRIX_SIZE);
 	if (!new_tbl) {
 		return nullptr;
 	}
@@ -31,8 +30,7 @@ handle_table_t *new_handle_table()
 	if (no_first_table) {
 		arena_thread->first_hdl_tbl = new_tbl;
 		new_tbl->next_table = nullptr;
-	}
-	else {
+	} else {
 		handle_table_t *table_array[arena_thread->table_count];
 		const i32 max_array_length = return_table_array(table_array);
 		table_array[max_array_length - 1]->next_table = new_tbl;

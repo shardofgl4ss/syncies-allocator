@@ -7,7 +7,6 @@
 #include "debug.h"
 #include "defs.h"
 #include "handle.h"
-#include "helper_functions.h"
 #include "structs.h"
 #include "types.h"
 #include <signal.h>
@@ -22,7 +21,7 @@ _Thread_local arena_t *arena_thread = nullptr;
 
 int arena_init()
 {
-	void *raw_pool = helper_map_mem((MAX_FIRST_POOL_SIZE + (ALIGNMENT - 1)) & (usize)~(ALIGNMENT - 1));
+	void *raw_pool = syn_map_page((MAX_FIRST_POOL_SIZE + (ALIGNMENT - 1)) & (usize)~(ALIGNMENT - 1));
 
 	if (raw_pool == MAP_FAILED) {
 		goto alloc_failure;
@@ -34,7 +33,7 @@ int arena_init()
 	 * after the reserved space, then just set pool_size to the FIRST_POOL_ALLOC.			*
 	 * This spoofs a max memory of POOL_SIZE when its actually POOL_SIZE - reserved. 		*/
 
-	auto *first_pool = (memory_pool_t *)((char *)raw_pool + PD_ARENA_SIZE);
+	memory_pool_t *first_pool = (memory_pool_t *)((char *)raw_pool + PD_ARENA_SIZE);
 	const uintptr_t relative_cache_align = ALIGN_PTR(
 	                                                 ((uintptr_t)raw_pool + PD_RESERVED_F_SIZE + DEADZONE_PADDING),
 	                                                 64)
@@ -45,7 +44,7 @@ int arena_init()
 	// This might need to be changed for certain architectures, since its 8 byte aligned before a 64 alignment,
 	// making it appear at: 00 00 00 00 ad de ad de, if ARM requires a double-quadword r/w alignment, itll have
 	// to be pushed back by 8 bytes. Itll be fine if it just needs quadword alignment though.
-	auto *deadzone = (u64 *)((char *)first_pool->mem - DEADZONE_PADDING);
+	u64 *deadzone = (u64 *)((char *)first_pool->mem - DEADZONE_PADDING);
 	*deadzone = POOL_DEADZONE;
 
 	first_pool->offset = 0;
@@ -73,21 +72,21 @@ alloc_failure:
 memory_pool_t *pool_init(const u32 size)
 {
 	const usize padded_size = ADD_ALIGNMENT_PADDING(size);
-	void *raw_pool = helper_map_mem(padded_size);
+	void *raw_pool = syn_map_page(padded_size);
 
 	if (!raw_pool) {
 		return nullptr;
 	}
 	const uintptr_t relative_cache_align = ALIGN_PTR(
-							 ((uintptr_t)raw_pool + PD_POOL_SIZE + DEADZONE_PADDING),
-							 64)
-					       - (uintptr_t)raw_pool;
+	                                                 ((uintptr_t)raw_pool + PD_POOL_SIZE + DEADZONE_PADDING),
+	                                                 64)
+	                                       - (uintptr_t)raw_pool;
 	memory_pool_t *new_pool = raw_pool;
 
 	new_pool->heap_base = raw_pool;
 	new_pool->mem = (void *)((u8 *)raw_pool + relative_cache_align);
 
-	auto *deadzone = (u64 *)((char *)new_pool->mem - DEADZONE_PADDING);
+	u64 *deadzone = (u64 *)((char *)new_pool->mem - DEADZONE_PADDING);
 	*deadzone = POOL_DEADZONE;
 
 	new_pool->size = padded_size;

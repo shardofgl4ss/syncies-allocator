@@ -8,6 +8,7 @@
 #include "defs.h"
 #include "structs.h"
 #include "types.h"
+#include <sys/mman.h>
 
 [[gnu::visibility("hidden")]]
 extern _Thread_local arena_t *arena_thread;
@@ -15,20 +16,24 @@ extern _Thread_local arena_t *arena_thread;
 [[gnu::visibility("hidden")]]
 extern int bad_alloc_check(const syn_handle_t *restrict hdl, int do_checksum);
 
-[[gnu::visibility("hidden"), maybe_unused]]
-inline static int return_table_array(handle_table_t **arr) {
-	if (arena_thread == nullptr || arena_thread->table_count == 0 || arena_thread->first_hdl_tbl == nullptr || arr == nullptr) {
-		return 0;
-	}
-	handle_table_t *tbl = arena_thread->first_hdl_tbl;
 
-	int idx = 0;
-	while (idx < arena_thread->pool_count && tbl != nullptr) {
-		arr[idx++] = tbl;
-		tbl = tbl->next_table;
-	}
-	return idx;
-}
+/// @brief Destroys a heap allocation. Just a wrapper for mmap() to reduce includes.
+/// @param mem The heap to destroy.
+/// @param bytes The size of the heap.
+/// @return 0 if successful, -1 for errors.
+extern int syn_unmap_page(void *restrict mem, usize bytes);
+
+
+/// @brief Allocates memory via mmap(). Each map is marked NORESERVE and ANONYMOUS.
+/// Just a wrapper for mmap() to reduce includes.
+/// @param bytes How many bytes to allocate.
+/// @return voidptr to the heap region.
+[[nodiscard, gnu::malloc(munmap, 1), gnu::alloc_size(1)]]
+extern void *syn_map_page(usize bytes);
+
+
+[[gnu::visibility("hidden"), maybe_unused]]
+extern int return_table_array(handle_table_t * *arr);
 
 /**
  * Instead of walking the linked list of pools, this fills a VLA ptr array.
@@ -41,19 +46,8 @@ inline static int return_table_array(handle_table_t **arr) {
  * and not mutate the ptrs provided.
  */
 [[gnu::visibility("hidden"), maybe_unused]]
-inline static int return_pool_array(memory_pool_t **arr) {
-	if (arena_thread == nullptr || arena_thread->first_mempool == nullptr || arr == nullptr) {
-		return 0;
-	}
-	memory_pool_t *pool = arena_thread->first_mempool;
+extern int return_pool_array(memory_pool_t * *arr);
 
-	int idx = 0;
-	for (; idx < arena_thread->pool_count; idx++) {
-		arr[idx] = pool;
-		pool = pool->next_pool;
-	}
-	return idx;
-}
 
 /**
  * Instead of walking the free list, this fills a VLA ptr array.
@@ -66,20 +60,8 @@ inline static int return_pool_array(memory_pool_t **arr) {
  * @warning If any parameter is NULL or there is no list, this will return zero,
  * and not mutate the ptrs provided.
  */
-[[gnu::visibility("hidden"), maybe_unused]]
-inline static int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool) {
-	if (arena_thread == nullptr || pool == nullptr || pool->first_free == nullptr || arr == nullptr) {
-		return 0;
-	}
-	pool_free_node_t *head = pool->first_free;
-
-	int idx = 0;
-	while (idx < pool->free_count && head != nullptr) {
-		arr[idx++] = head;
-		head = head->next_free;
-	}
-	return idx;
-}
+[[gnu::visibility("hidden")]]
+extern int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool);
 
 /**
  * Checks for corruption in a given header.
@@ -88,9 +70,11 @@ inline static int return_free_array(pool_free_node_t **arr, const memory_pool_t 
  * @return False if no corruption is found, true otherwise.
  */
 [[maybe_unused]]
-inline static bool corrupt_header_check(pool_header_t *restrict head) {
+inline static bool corrupt_header_check(pool_header_t * restrict head)
+{
 	return (*(u32 *)((char *)head + (head->chunk_size - DEADZONE_PADDING)) != HEAD_DEADZONE);
 }
+
 
 /**
  * Checks for corruption in a given pool.
@@ -99,9 +83,11 @@ inline static bool corrupt_header_check(pool_header_t *restrict head) {
  * @return False if no corruption is found, true otherwise.
  */
 [[maybe_unused]]
-inline static bool corrupt_pool_check(memory_pool_t *pool) {
+inline static bool corrupt_pool_check(memory_pool_t *pool)
+{
 	return (*(u64 *)((char *)pool + PD_POOL_SIZE) != POOL_DEADZONE);
 }
+
 
 /**
  * Clears up defragmentation of the memory pool where there is any.
@@ -122,7 +108,7 @@ extern void defragment_pool(bool light_flag);
  * @param head The header to index.
  */
 [[gnu::visibility("hidden")]]
-extern void update_sentinel_and_free_flags(pool_header_t *head);
+extern void update_sentinel_and_free_flags(pool_header_t * head);
 
 
 /**

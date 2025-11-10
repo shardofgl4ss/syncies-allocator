@@ -19,5 +19,5 @@ add_library(sync_alloc SHARED
 			alloc_utils.c
 )
 target_include_directories(sync_alloc PRIVATE include builtin/include)
-target_compile_options(sync_alloc PRIVATE ${DEBUG_COMPILE_FLAGS} -Wno-format-nonliteral -Wno-ignored-attributes)
+#target_compile_options(sync_alloc PRIVATE ${DEBUG_COMPILE_FLAGS} -Wno-format-nonliteral -Wno-ignored-attributes)
 #target_link_options(sync_alloc PUBLIC -fsanitize=address -fsanitize=undefined)

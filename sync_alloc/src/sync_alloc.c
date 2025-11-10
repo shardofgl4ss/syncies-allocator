@@ -9,7 +9,6 @@
 #include "debug.h"
 #include "defs.h"
 #include "handle.h"
-#include "helper_functions.h"
 #include "internal_alloc.h"
 #include "structs.h"
 #include "syn_memops.h"
@@ -106,8 +105,8 @@ void syn_reset()
 		return;
 	}
 	pool_arr[0]->offset = 0;
-	for (int i = 1; i < pool_arr_len; i++) {
-		helper_destroy(pool_arr[i]->mem, pool_arr[i]->size);
+	for (int i = pool_arr_len - 1; i > 0; i--) {
+		syn_unmap_page(pool_arr[i]->mem, pool_arr[i]->size);
 	}
 
 	pool_arr[0]->next_pool = nullptr;

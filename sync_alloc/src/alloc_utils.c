@@ -36,6 +36,67 @@ inline int bad_alloc_check(const syn_handle_t *restrict hdl, const int do_checks
 }
 
 
+int syn_unmap_page(void *restrict mem, const usize bytes)
+{
+	return munmap(mem, bytes);
+}
+
+
+void *syn_map_page(const usize bytes)
+{
+	return mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+}
+
+
+inline int return_pool_array(memory_pool_t **arr)
+{
+	if (arena_thread == nullptr || arena_thread->first_mempool == nullptr || arr == nullptr) {
+		return 0;
+	}
+	memory_pool_t *pool = arena_thread->first_mempool;
+
+	int idx = 0;
+	for (; idx < arena_thread->pool_count; idx++) {
+		arr[idx] = pool;
+		pool = pool->next_pool;
+	}
+	return idx;
+}
+
+
+inline int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool)
+{
+	if (arena_thread == nullptr || pool == nullptr || pool->first_free == nullptr || arr == nullptr) {
+		return 0;
+	}
+	pool_free_node_t *head = pool->first_free;
+
+	int idx = 0;
+	while (idx < pool->free_count && head != nullptr) {
+		arr[idx++] = head;
+		head = head->next_free;
+	}
+	return idx;
+}
+
+
+inline int return_table_array(handle_table_t **arr)
+{
+	if (arena_thread == nullptr || arena_thread->table_count == 0 || arena_thread->first_hdl_tbl == nullptr || arr
+	    == nullptr) {
+		return 0;
+	}
+	handle_table_t *tbl = arena_thread->first_hdl_tbl;
+
+	int idx = 0;
+	while (idx < arena_thread->pool_count && tbl != nullptr) {
+		arr[idx++] = tbl;
+		tbl = tbl->next_table;
+	}
+	return idx;
+}
+
+
 void update_sentinel_and_free_flags(pool_header_t *head)
 {
 	const u32 prev_block_size = (head->bitflags & F_FIRST_HEAD)
@@ -47,7 +108,7 @@ void update_sentinel_and_free_flags(pool_header_t *head)
 	// so it gets messy here. At least bitflags line up between pool_header_t and
 	// pool_free_node_t, so no casting is needed for setting their bitflags.
 	if (prev_block_size > 0 && prev_block_size < chunk_overflow) {
-		auto *prev_head = (pool_header_t *)((u8 *)head - prev_block_size);
+		pool_header_t *prev_head = (pool_header_t *)((u8 *)head - prev_block_size);
 		if (prev_head->bitflags & F_SENTINEL) {
 			prev_head->bitflags &= ~F_SENTINEL;
 			head->bitflags |= F_SENTINEL;
@@ -65,7 +126,7 @@ void update_sentinel_and_free_flags(pool_header_t *head)
 		return;
 	}
 
-	auto *next_head = (pool_header_t *)((u8 *)head + head->chunk_size);
+	pool_header_t *next_head = (pool_header_t *)((u8 *)head + head->chunk_size);
 	if (next_head->bitflags == 0 || next_head->bitflags & F_SENTINEL) {
 		return;
 	}

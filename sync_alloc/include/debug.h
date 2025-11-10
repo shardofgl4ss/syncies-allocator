@@ -10,6 +10,16 @@
 #include "structs.h"
 #include <stdio.h>
 
+/// @brief Formats a string + variadic list then prints to stdout.
+/// @param string The string to format and print.
+/// @param arg_list Variadic function parameter list.
+extern void log_stdout(const char *string, va_list arg_list);
+
+/// @brief Formats a string + variadic list then prints to stderr.
+/// @param string The string to format and print.
+/// @param arg_list Variadic function parameter list.
+extern void log_stderr(const char *restrict string, va_list arg_list);
+
 /// @brief Logs a message to the console.
 /// @param log_and_stream log_stdout = prints to stdout. log_stderr = prints to stderr.
 /// @param str The string to format and print.
@@ -22,33 +32,11 @@
 /// @details
 /// debug_level 2 == log all
 [[maybe_unused, gnu::visibility("hidden")]]
-extern void log_to_console(void (*log_and_stream)(const char *format, va_list va_args), const char *str, ...);
+extern void log_to_console(void(*log_and_stream)(const char *format, va_list va_args), const char *str,  ...);
 
 /// @brief Prints all important statistics about the arena at any given time.
 [[maybe_unused, gnu::visibility("protected")]]
 void debug_print_memory_usage();
-
-/// @brief Formats a string + variadic list then prints to stdout.
-/// @param string The string to format and print.
-/// @param arg_list Variadic function parameter list.
-[[maybe_unused]]
-inline static void log_stdout(const char *string, va_list arg_list) {
-	const char *prefix = "SYNC_ALLOC [LOG] ";
-	fputs(prefix, stdout);
-	vfprintf(stdout, string, arg_list);
-	fflush(stdout);
-}
-
-/// @brief Formats a string + variadic list then prints to stderr.
-/// @param string The string to format and print.
-/// @param arg_list Variadic function parameter list.
-[[maybe_unused]]
-inline static void log_stderr(const char *restrict string, va_list arg_list) {
-	const char *prefix = "SYNC_ALLOC [ERR] ";
-	fputs(prefix, stderr);
-	vfprintf(stderr, string, arg_list);
-	fflush(stderr);
-}
 
 [[maybe_unused, gnu::visibility("hidden")]]
 extern debug_vtable_t sync_alloc_log;

@@ -11,6 +11,6 @@
 extern int syn_memcpy(void *restrict destination, const void *restrict source, usize size);
 
 [[gnu::hot]]
-extern int syn_memset(void *restrict target, u8 c, usize bytes);
+extern int syn_memset(void *restrict target, u8 byte, usize bytes);
 
 #endif //ARENA_ALLOCATOR_SYN_MEMOPS_H
