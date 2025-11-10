@@ -8,7 +8,9 @@
 #include "alloc_utils.h"
 #include "debug.h"
 #include "defs.h"
+#ifndef SYN_USE_RAW
 #include "handle.h"
+#endif
 #include "internal_alloc.h"
 #include "structs.h"
 #include "syn_memops.h"
@@ -18,12 +20,14 @@
 
 void syn_destroy()
 {
-	if (arena_thread == nullptr || (arena_thread->pool_count == 0 && arena_thread->table_count == 0)) {
+	if (arena_thread == nullptr || (arena_thread->pool_count == 0)) {
 		return;
 	}
+	#ifndef SYN_USE_RAW
 	if (arena_thread->table_count > 0) {
 		table_destructor();
 	}
+	#endif
 	if (arena_thread->pool_count > 0) {
 		pool_destructor();
 	}
@@ -32,14 +36,18 @@ void syn_destroy()
 
 
 [[nodiscard]]
+#ifdef SYN_USE_RAW
+void *syn_alloc(const usize size)
+#else
 syn_handle_t syn_alloc(const usize size)
+#endif
 {
 	if (arena_thread != nullptr) {
 		goto arena_initialized;
 	}
 	if (arena_init() != 0) {
 		sync_alloc_log.to_console(log_stderr, "OOM\n");
-		return invalid_hdl();
+		return invalid_block();
 	}
 
 arena_initialized:
@@ -53,13 +61,13 @@ arena_initialized:
 
 	if ((usize)MAX_ALLOC_POOL_SIZE < size) {
 		// TODO implement large page allocation
-		return invalid_hdl();
+		return invalid_block();
 	}
 	bool retried = false;
 reloop:
 	pool_header_t *new_head = find_or_create_new_header(padded_size);
 	if (retried) {
-		return invalid_hdl();
+		return invalid_block();
 	}
 	if (new_head == nullptr) {
 		pool[pool_arr_len] = pool_init(pool[pool_arr_len]->size * 2);
@@ -79,7 +87,7 @@ inline syn_handle_t syn_calloc(const usize size)
 	                             hdl.header == nullptr) != 0;
 
 	if (is_invalid_hdl) {
-		return invalid_hdl();
+		return invalid_block();
 	}
 
 	syn_memset(hdl.addr, 0, hdl.header->allocation_size);

@@ -74,24 +74,24 @@ syn_handle_t create_handle_and_entry(pool_header_t *head)
 	handle_context_t ctx = {};
 
 	if (!arena_thread->table_count && !new_handle_table()) {
-		return invalid_hdl();
+		return invalid_block();
 	}
 
 	handle_table_t *table_arr[arena_thread->table_count + 1];
 	ctx.max_table_array_index = return_table_array(table_arr);
 	if (!ctx.max_table_array_index) {
-		return invalid_hdl();
+		return invalid_block();
 	}
 	ctx.table_arr = table_arr;
 
 	const i32 new_index = find_non_empty_table(&ctx);
 	if (new_index == -1) {
-		return invalid_hdl();
+		return invalid_block();
 	}
 	handle_table_t *non_empty_table = table_arr[new_index];
 	i32 free_handle_column = stdc_first_trailing_zero_ull(non_empty_table->entries_bitmap);
 	if (free_handle_column == 0) {
-		return invalid_hdl();
+		return invalid_block();
 	}
 	free_handle_column--;
 	//syn_handle_t new_hdl = non_empty_table->handle_entries[free_handle_column];

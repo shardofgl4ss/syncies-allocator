@@ -57,9 +57,14 @@
  * 32-byte alignment is optimal for AVX instructions.
  * 64-byte alignment is optimal for AVX512 instructions.
  */
-// TODO actually make alignment align instead of add padding.
 #ifndef ALIGNMENT
 	#define	ALIGNMENT 16
+#endif
+
+#define SYN_ALLOC_HANDLE 1
+
+#ifndef SYN_ALLOC_HANDLE
+	#define SYN_USE_RAW 1
 #endif
 
 #define PADDING 8
@@ -75,7 +80,6 @@ static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) &&
 	(((x) + (ALIGNMENT - 1)) & (typeof(x))~(ALIGNMENT - 1))
 #define BLOCK_ALIGN_PTR(head, align) \
 	((((uintptr_t)(head) + PD_HEAD_SIZE) + ((align) - 1)) & ~((align) - 1))
-//(void *)((((char *)(head) + PD_HEAD_SIZE)) + ((align) - 1)) & ~((align) - 1))
 #define ALIGN_PTR(ptr, align) \
 	((((uintptr_t)(ptr)) + ((align) - 1)) & ~((align) - 1))
 #define IS_ALIGNED(ptr, align) \

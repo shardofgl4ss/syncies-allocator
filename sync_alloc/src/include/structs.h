@@ -80,6 +80,7 @@ enum Header_Flags : u16 {
  *	and on top of that, would also probably add unfixable fragmentation.
  */
 typedef struct Pool_Header {
+	// handle_idx is kept for compatibility with casting to Pool_Free_Node if SYN_USE_RAW is set.
 	u32 handle_idx;		/**< Index to the header's handle.		*/
 	u32 allocation_size;	/**< Actual size of the allocation.		*/
 	u32 chunk_size;		/**< Size of the entire chunk, with header.	*/
@@ -118,7 +119,9 @@ typedef struct Pool_Free_Node {
 typedef struct Pool_Header_Ext {
 	u64 size;		/**< Size of the block in front of the header.	*/
 	u64 prev_block_size;	/**< Size of the previous header block.		*/
+	#ifndef SYN_USE_RAW
 	u64 handle_idx;		/**< Index to the header's handle.		*/
+	#endif
 	bit64 block_flags;	/**< Flag-enum bitmap of the header.		*/
 } __attribute__((aligned(32))) pool_header_ext_t;
 
@@ -133,60 +136,13 @@ typedef struct Pool_Header_Ext {
  */
 typedef struct Memory_Pool {
 	void *mem;			/**< Pointer to the heap region.			*/
+	void *heap_base;		/**< Base of the heap, used for freeing.		*/
 	struct Memory_Pool *next_pool;	/**< Pointer to the next pool.				*/
-	//struct Memory_Pool *prev_pool;	/**< Pointer to the previous pool.			*/
-	void *heap_base;
 	pool_free_node_t *first_free;	/**< Pointer to the first freed header.			*/
 	u32 size;			/**< Maximum allocated size for this pool in bytes.	*/
 	u32 offset;			/**< How much space has been used so far in bytes.	*/
 	u32 free_count;			/**< How many freed headers there are in this pool.	*/
 } __attribute__((aligned(64))) memory_pool_t;
-
-/**
- * 	Arena structure for use by the user.
- *
- *	@details Each handle contains a flattened handle index for lookup. When you need to use
- *	the block address, the handle should be locked through the allocator API (*ptr = handle_lock(handle)),
- *	and then unlocked when done so defragmentation can occur.
- *
- *	@note if generation is equal to the maximum number for an unsigned 32 bit, it will be treated
- *	as if it was an invalid handle.
- *
- *	@warning Each handle is given to the user to their respective block, but it should not be
- *	dereferenced manually by doing handle->addr, instead use the dereference API for safety.
- *
- *	@warning Interacting with the structure manually, beyond passing it between arena functions,
- *	is undefined behavior.
- */
-typedef struct Syn_Handle {
-	void *addr;			/**< address to the user's block. Equivalent to *header + sizeof(header). */
-	pool_header_t *header;		/**< pointer to the sentinel header of the user's block.		  */
-	u32 generation;			/**< generation of pointer, to detect stale handles and use-after-frees.  */
-	u32 handle_matrix_index;	/**< flattened matrix index.						  */
-} __attribute__((aligned(32))) syn_handle_t;
-
-/**
- * 	Table of user allocations.
- *
- *	@details Each handle table has a max handle count of 64, allocated in chunks.
- *	Each table is in a linked list to allow easy infinite table allocation.
- *	The maximum capacity of a handle table is defined as TABLE_MAX_COL.
- *
- *	@note handle_entries[] might be converted into a fixed 64 array instead
- *	of a FAM, but for possible future dynamic expansion of handle tables,
- *	it will stay as this until I make up my mind.
- *
- *	@details PD_HANDLE_MATRIX_SIZE is directly equivalent to each total table size.
- *
- *	@details Bitmap:  0 == FREE, 1 == ALLOCATED.
- */
-typedef struct Handle_Table {
-	struct Handle_Table *next_table;	/**< Pointer to the next table.				*/
-	bit64 entries_bitmap;			/**< Bitmap of used and free handles			*/
-	u32 table_id;				/**< The index of the current table.			*/
-	syn_handle_t handle_entries[];		/**< array of entries via FAM. index via entries bit.	*/
-} handle_table_t;
-
 
 /**
  * 	Super-struct-ure for the entire arena.
@@ -218,13 +174,15 @@ typedef struct Handle_Table {
  * 	allocation and logging capacity.
  */
 typedef struct Arena {
-	handle_table_t *first_hdl_tbl;	/**< Pointer to LL of tables, matrix.		*/
 	memory_pool_t *first_mempool;	/**< Pointer to the first memory pool.		*/
 	memory_pool_t *first_hp_pool;	/**< Pointer to the first huge page pool.	*/
 	usize total_arena_bytes;	/**< The total size of all pools together.	*/
+	#ifndef SYN_USE_RAW
+	handle_table_t *first_hdl_tbl;	/**< Pointer to LL of tables, matrix.		*/
 	u32 table_count;		/**< How many tables there are.			*/
+	#endif
 	u32 pool_count;			/**< How many memory pools there are.		*/
-} __attribute__((aligned(64))) arena_t;
+} __attribute__((aligned(32))) arena_t;
 
 typedef struct Debug_VTable {
 	void (*debug_print_all)();
@@ -247,10 +205,6 @@ static constexpr u16 PD_ARENA_SIZE = (sizeof(arena_t) + (ALIGNMENT - 1)) & (u16)
 static constexpr u16 PD_POOL_SIZE = (sizeof(memory_pool_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_HEAD_SIZE = (sizeof(pool_header_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_FREE_PH_SIZE = (sizeof(pool_free_node_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_HANDLE_SIZE = (sizeof(syn_handle_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_TABLE_SIZE = (sizeof(handle_table_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_HDL_MATRIX_SIZE =
-		((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE)) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 
 #endif //ARENA_ALLOCATOR_STRUCTS_H
