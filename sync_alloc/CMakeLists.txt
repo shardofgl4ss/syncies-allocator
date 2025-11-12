@@ -1,8 +1,9 @@
-include_directories(include)
+target_include_directories(sync_alloc PUBLIC include)
+target_include_directories(alloc_tester PUBLIC include)
 
 target_sources(sync_alloc
-			   PUBLIC
-			   FILE_SET public_headers
+			   INTERFACE
+			   FILE_SET interface_headers
 			   TYPE HEADERS
 			   BASE_DIRS "include"
 			   FILES "include/sync_alloc.h"

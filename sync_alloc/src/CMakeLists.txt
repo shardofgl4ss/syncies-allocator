@@ -2,9 +2,8 @@ target_include_directories(sync_alloc PRIVATE include)
 target_include_directories(syn_memops_test PRIVATE include)
 
 target_sources(sync_alloc
-			   INTERFACE
-			   sync_alloc.c
 			   PRIVATE
+			   sync_alloc.c
 			   internal_alloc.c
 			   handle.c
 			   debug.c
