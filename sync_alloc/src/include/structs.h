@@ -9,6 +9,9 @@
 #include "types.h"
 #include <stdio.h>
 
+typedef struct Syn_Handle syn_handle_t;
+typedef struct Handle_Table handle_table_t;
+
 // clang-format off
 
 /**
@@ -80,8 +83,11 @@ enum Header_Flags : u16 {
  *	and on top of that, would also probably add unfixable fragmentation.
  */
 typedef struct Pool_Header {
-	// handle_idx is kept for compatibility with casting to Pool_Free_Node if SYN_USE_RAW is set.
+	#ifndef SYN_USE_RAW
 	u32 handle_idx;		/**< Index to the header's handle.		*/
+	#else
+	u32 magic;
+	#endif
 	u32 allocation_size;	/**< Actual size of the allocation.		*/
 	u32 chunk_size;		/**< Size of the entire chunk, with header.	*/
 	bit32 bitflags;		/**< Enum bitmap for flags.			*/
@@ -182,7 +188,7 @@ typedef struct Arena {
 	u32 table_count;		/**< How many tables there are.			*/
 	#endif
 	u32 pool_count;			/**< How many memory pools there are.		*/
-} __attribute__((aligned(32))) arena_t;
+} __attribute__((aligned(64))) arena_t;
 
 typedef struct Debug_VTable {
 	void (*debug_print_all)();
@@ -198,7 +204,6 @@ typedef struct Debug_VTable {
  * PD here stands for PADDED, F for FIRST as the first arena's pool is a special case. PH also stands for Pool Header.
  */
 
-// TODO fix all usages of the new pool deadzone vs head deadzone.
 static constexpr u64 POOL_DEADZONE = 0xDEADDEADDEADDEADULL;
 static constexpr u32 HEAD_DEADZONE = 0xDEADDEADU;
 static constexpr u16 PD_ARENA_SIZE = (sizeof(arena_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);

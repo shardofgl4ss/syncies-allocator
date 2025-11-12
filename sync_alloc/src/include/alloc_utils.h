@@ -14,14 +14,18 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
+
 [[gnu::visibility("hidden")]]
 extern _Thread_local arena_t *arena_thread;
+
 
 #ifdef SYN_USE_RAW
 static inline void *invalid_block()
 {
 	return nullptr;
 }
+
+inline int bad_alloc_check(const void *, const int do_checksum);
 #else
 static inline syn_handle_t invalid_block()
 {
@@ -33,6 +37,9 @@ static inline syn_handle_t invalid_block()
 	};
 	return hdl;
 }
+
+[[gnu::visibility("hidden")]]
+extern syn_handle_t *index_table(syn_handle_t *(*from)(void *), const handle_table_t **table_arr);
 
 [[gnu::visibility("hidden")]]
 extern int bad_alloc_check(const syn_handle_t *restrict hdl, int do_checksum);
@@ -57,8 +64,10 @@ extern void update_table_generation(const syn_handle_t *restrict hdl);
 
 [[gnu::visibility("hidden")]]
 extern void table_destructor();
-#endif
 
+[[gnu::visibility("hidden"), maybe_unused]]
+extern int return_table_array(handle_table_t * *arr);
+#endif
 
 /// @brief Destroys a heap allocation. Just a wrapper for mmap() to reduce includes.
 /// @param mem The heap to destroy.
@@ -86,10 +95,7 @@ extern void *syn_map_page(usize bytes);
  * and not mutate the ptrs provided.
  */
 [[gnu::visibility("hidden"), maybe_unused]]
-extern int return_pool_array(memory_pool_t **arr);
-
-[[gnu::visibility("hidden"), maybe_unused]]
-extern int return_table_array(handle_table_t **arr);
+extern int return_pool_array(memory_pool_t * *arr);
 
 /**
  * Instead of walking the free list, this fills a VLA ptr array.
@@ -112,7 +118,7 @@ extern int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool);
  * @return False if no corruption is found, true otherwise.
  */
 [[maybe_unused]]
-inline static bool corrupt_header_check(pool_header_t *restrict head)
+inline static bool corrupt_header_check(pool_header_t * restrict head)
 {
 	return (*(u32 *)((char *)head + (head->chunk_size - DEADZONE_PADDING)) != HEAD_DEADZONE);
 }
@@ -149,7 +155,7 @@ extern void defragment_pool();
  * @param head The header to index.
  */
 [[gnu::visibility("hidden")]]
-extern void update_sentinel_and_free_flags(pool_header_t *head);
+extern void update_sentinel_and_free_flags(pool_header_t * head);
 
 
 [[gnu::visibility("hidden")]]

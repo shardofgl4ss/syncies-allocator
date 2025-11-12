@@ -4,7 +4,7 @@
 
 #include "alloc_init.h"
 #include "alloc_utils.h"
-#include "debug.h"
+#include "include/debug.h"
 #include "defs.h"
 #include "handle.h"
 #include "structs.h"

@@ -6,7 +6,7 @@
 #include "sync_alloc.h"
 #include "alloc_init.h"
 #include "alloc_utils.h"
-#include "debug.h"
+#include "include/debug.h"
 #include "defs.h"
 #ifndef SYN_USE_RAW
 #include "handle.h"
@@ -32,6 +32,32 @@ void syn_destroy()
 		pool_destructor();
 	}
 	arena_thread = nullptr;
+}
+
+
+void syn_reset()
+{
+	if (arena_thread == nullptr || arena_thread->pool_count == 0) {
+		sync_alloc_log.to_console(log_stderr, "syn_reset() called without an allocated arena!\n");
+		return;
+	}
+	if (arena_thread->pool_count == 1) {
+		arena_thread->first_mempool->offset = 0;
+		return;
+	}
+
+	memory_pool_t *pool_arr[arena_thread->pool_count];
+	const int pool_arr_len = return_pool_array(pool_arr);
+
+	if (pool_arr_len == 0) {
+		return;
+	}
+	pool_arr[0]->offset = 0;
+	for (int i = pool_arr_len - 1; i > 0; i--) {
+		syn_unmap_page(pool_arr[i]->mem, pool_arr[i]->size);
+	}
+
+	pool_arr[0]->next_pool = nullptr;
 }
 
 
@@ -92,32 +118,6 @@ inline syn_handle_t syn_calloc(const usize size)
 
 	syn_memset(hdl.addr, 0, hdl.header->allocation_size);
 	return hdl;
-}
-
-
-void syn_reset()
-{
-	if (arena_thread == nullptr || arena_thread->pool_count == 0) {
-		sync_alloc_log.to_console(log_stderr, "syn_reset() called without an allocated arena!\n");
-		return;
-	}
-	if (arena_thread->pool_count == 1) {
-		arena_thread->first_mempool->offset = 0;
-		return;
-	}
-
-	memory_pool_t *pool_arr[arena_thread->pool_count];
-	const int pool_arr_len = return_pool_array(pool_arr);
-
-	if (pool_arr_len == 0) {
-		return;
-	}
-	pool_arr[0]->offset = 0;
-	for (int i = pool_arr_len - 1; i > 0; i--) {
-		syn_unmap_page(pool_arr[i]->mem, pool_arr[i]->size);
-	}
-
-	pool_arr[0]->next_pool = nullptr;
 }
 
 
@@ -197,21 +197,21 @@ void *syn_freeze(syn_handle_t *restrict user_handle)
 }
 
 
-void syn_thaw(syn_handle_t *restrict user_handle)
+syn_handle_t syn_thaw(void *restrict block_ptr)
 {
-	if (handle_generation_checksum(user_handle)) {
-		return;
+	if (handle_generation_checksum(block_ptr)) {
+		return invalid_block();
 	}
-	if (bad_alloc_check(user_handle, 0) != 2) {
-		return;
+	if (bad_alloc_check(block_ptr, 0) != 2) {
+		return invalid_block();
 	}
 
-	update_table_generation(user_handle);
-	if (!handle_generation_checksum(user_handle)) {
+	update_table_generation(block_ptr);
+	if (!handle_generation_checksum(block_ptr)) {
 		sync_alloc_log.to_console(log_stderr, "thaw attempt on stale handle!\n");
-		return;
+		return invalid_block();
 	}
-	user_handle->header->bitflags &= ~F_FROZEN;
-	user_handle->addr = nullptr;
+	block_ptr->header->bitflags &= ~F_FROZEN;
+	block_ptr->addr = nullptr;
 	// arena_defragment(arena, true);
 }

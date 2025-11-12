@@ -9,10 +9,6 @@
 #include "types.h"
 #include <stdint.h>
 
-enum {
-	LINEAR_OFFSET = 2,
-};
-
 typedef struct Header_Context {
 	memory_pool_t *pool;
 	memory_pool_t **pool_array;
@@ -30,6 +26,12 @@ header_type_jumptable_t header_jumptable[] = {
 	zero_offset_header,
 	free_list_header,
 	linear_offset_header,
+};
+
+enum {
+	ZERO_OFFSET = 0,
+	FREE_OFFSET = 1,
+	LINEAR_OFFSET = 2,
 };
 
 static constexpr u32 JUMPTABLE_LAST_INDEX = (sizeof(header_jumptable) / sizeof(header_jumptable[0])) - 1;
@@ -61,8 +63,8 @@ skip_space_check:
 	head->chunk_size = pad_chunk_size;
 	head->handle_idx = 0;
 	head->bitflags |= (ctx->pool->offset == 0)
-	                  ? F_ALLOCATED | F_FIRST_HEAD
-	                  : F_ALLOCATED;
+		? F_ALLOCATED | F_FIRST_HEAD
+		: F_ALLOCATED;
 
 	u32 *deadzone = (u32 *)((u8 *)head + (pad_chunk_size - DEADZONE_PADDING));
 	*deadzone++ = HEAD_DEADZONE;
@@ -111,10 +113,7 @@ inline static i32 linear_offset_header(const header_context_t *restrict ctx)
 	if (pool_is_invalid) {
 		return 1;
 	}
-	const bool pool_out_of_space = (ctx->pool->offset + ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING > ctx->pool
-	                                                                                                          ->
-	                                                                                                          size)
-	                               != 0;
+	const bool pool_out_of_space = (ctx->pool->offset + ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING > ctx->pool->size) != 0;
 	if (pool_out_of_space) {
 		return 1;
 	}
@@ -211,3 +210,4 @@ pool_header_t *find_or_create_new_header(const u32 requested_size)
 	update_sentinel_and_free_flags(new_head);
 	return new_head;
 }
+

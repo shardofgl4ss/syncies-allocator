@@ -4,7 +4,7 @@
 // ReSharper disable CppRedundantBooleanExpressionArgument
 // ReSharper disable CppDFAUnreachableCode
 
-#include "debug.h"
+#include "include/debug.h"
 #include <stdarg.h>
 #include <stdbit.h>
 #include <string.h>

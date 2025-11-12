@@ -16,7 +16,11 @@ typedef struct Handle_Context {
 	handle_table_t **table_arr;
 	i32 max_table_array_index;
 	i32 current_index;
-} __attribute__((aligned(16))) handle_context_t;
+} __attribute__((aligned (16)
+
+)
+)
+handle_context_t;
 
 
 handle_table_t *new_handle_table()
@@ -79,22 +83,26 @@ syn_handle_t create_handle_and_entry(pool_header_t *head)
 
 	handle_table_t *table_arr[arena_thread->table_count + 1];
 	ctx.max_table_array_index = return_table_array(table_arr);
+
 	if (!ctx.max_table_array_index) {
 		return invalid_block();
 	}
-	ctx.table_arr = table_arr;
 
+	ctx.table_arr = table_arr;
 	const i32 new_index = find_non_empty_table(&ctx);
+
 	if (new_index == -1) {
 		return invalid_block();
 	}
+
 	handle_table_t *non_empty_table = table_arr[new_index];
 	i32 free_handle_column = stdc_first_trailing_zero_ull(non_empty_table->entries_bitmap);
+
 	if (free_handle_column == 0) {
 		return invalid_block();
 	}
+
 	free_handle_column--;
-	//syn_handle_t new_hdl = non_empty_table->handle_entries[free_handle_column];
 	non_empty_table->entries_bitmap |= (1ULL << free_handle_column);
 
 	syn_handle_t new_hdl = {
@@ -103,6 +111,11 @@ syn_handle_t create_handle_and_entry(pool_header_t *head)
 		new_hdl.generation = 1,
 		new_hdl.handle_matrix_index = (arena_thread->table_count * MAX_TABLE_HNDL_COLS) + free_handle_column,
 	};
+
+	#ifndef SYN_USE_RAW
+	head->handle_idx = new_hdl.handle_matrix_index;
+	#endif
+
 
 	table_arr[new_index]->handle_entries[free_handle_column] = new_hdl;
 

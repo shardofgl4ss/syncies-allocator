@@ -6,11 +6,33 @@
 #define ARENA_ALLOCATOR_ALLOC_LIB_H
 
 #include "defs.h"
+#include "structs.h"
+#include "types.h"
 
 #ifdef SYN_ALLOC_HANDLE
-	typedef struct Syn_Handle syn_handle_t;
+/**
+ * 	Arena structure for use by the user.
+ *
+ *	@details Each handle contains a flattened handle index for lookup. When you need to use
+ *	the block address, the handle should be locked through the allocator API (*ptr = handle_lock(handle)),
+ *	and then unlocked when done so defragmentation can occur.
+ *
+ *	@note if generation is equal to the maximum number for an unsigned 32 bit, it will be treated
+ *	as if it was an invalid handle.
+ *
+ *	@warning Each handle is given to the user to their respective block, but it should not be
+ *	dereferenced manually by doing handle->addr, instead use the dereference API for safety.
+ *
+ *	@warning Interacting with the structure manually, beyond passing it between arena functions,
+ *	is undefined behavior.
+ */
+typedef struct Syn_Handle {
+	void *addr;			/**< address to the user's block. Equivalent to *header + sizeof(header). */
+	pool_header_t *header;		/**< pointer to the sentinel header of the user's block.		  */
+	u32 generation;			/**< generation of pointer, to detect stale handles and use-after-frees.  */
+	u32 handle_matrix_index;	/**< flattened matrix index.						  */
+} __attribute__((aligned (32))) syn_handle_t;
 #endif
-#include "types.h"
 
 
 // clang-format off
@@ -118,7 +140,7 @@ extern void *syn_freeze(syn_handle_t *);
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 [[gnu::visibility("default")]]
-extern void syn_thaw(syn_handle_t *user_handle);
+extern syn_handle_t syn_thaw(syn_handle_t *user_handle);
 
 #else
 

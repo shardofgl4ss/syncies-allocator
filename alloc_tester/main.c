@@ -1,9 +1,8 @@
 
-#include "structs.h"
-#include "sync_alloc.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <sync_alloc.h>
 
 //#include "syn_memops.h"
 //#include <stdlib.h>
