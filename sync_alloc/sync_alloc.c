@@ -6,17 +6,18 @@
 #include "sync_alloc.h"
 #include "alloc_init.h"
 #include "alloc_utils.h"
-#include "include/debug.h"
+#include "debug.h"
 #include "defs.h"
-#ifndef SYN_USE_RAW
-#include "handle.h"
-#endif
 #include "internal_alloc.h"
 #include "structs.h"
 #include "syn_memops.h"
 #include "types.h"
-#include <stdint.h>
 
+#ifndef SYN_USE_RAW
+#include "handle.h"
+#endif
+
+#include <stdint.h>
 
 void syn_destroy()
 {
@@ -63,10 +64,15 @@ void syn_reset()
 
 [[nodiscard]]
 #ifdef SYN_USE_RAW
+
 void *syn_alloc(const usize size)
+{
+
+}
+
 #else
+
 syn_handle_t syn_alloc(const usize size)
-#endif
 {
 	if (arena_thread != nullptr) {
 		goto arena_initialized;
@@ -103,6 +109,7 @@ reloop:
 	}
 	return create_handle_and_entry(new_head);
 }
+#endif
 
 
 inline syn_handle_t syn_calloc(const usize size)
@@ -178,7 +185,7 @@ int syn_realloc(syn_handle_t *restrict user_handle, const usize size)
 	old_head->bitflags &= ~F_ALLOCATED;
 	old_head->bitflags |= F_FREE;
 
-	update_table_generation(user_handle);
+	update_table_generation(user_handle->handle_matrix_index);
 	return 0;
 }
 
@@ -189,29 +196,30 @@ void *syn_freeze(syn_handle_t *restrict user_handle)
 		return nullptr;
 	}
 
-	user_handle->generation++;
 	user_handle->header->bitflags |= F_FROZEN;
 	user_handle->addr = (void *)BLOCK_ALIGN_PTR(user_handle->header, ALIGNMENT);
 
+	update_table_generation(user_handle->handle_matrix_index);
 	return user_handle->addr;
 }
 
 
 syn_handle_t syn_thaw(void *restrict block_ptr)
 {
-	if (handle_generation_checksum(block_ptr)) {
-		return invalid_block();
-	}
-	if (bad_alloc_check(block_ptr, 0) != 2) {
+	if (!block_ptr) {
 		return invalid_block();
 	}
 
-	update_table_generation(block_ptr);
-	if (!handle_generation_checksum(block_ptr)) {
-		sync_alloc_log.to_console(log_stderr, "thaw attempt on stale handle!\n");
+	const pool_header_t *head = return_header(block_ptr);
+	if (!head) {
+		sync_alloc_log.to_console(log_stderr, "invalid block_ptr!\n");
 		return invalid_block();
 	}
-	block_ptr->header->bitflags &= ~F_FROZEN;
-	block_ptr->addr = nullptr;
-	// arena_defragment(arena, true);
+	syn_handle_t *table_hdl = return_handle(head->handle_matrix_index);
+	syn_handle_t user_hdl = *table_hdl;
+
+	table_hdl->generation++;
+	user_hdl.generation++;
+
+	return user_hdl;
 }
