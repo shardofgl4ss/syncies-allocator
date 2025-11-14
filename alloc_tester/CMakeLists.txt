@@ -1,4 +1,4 @@
-target_sources(alloc_tester
+target_sources(tester
 			   PUBLIC
 			   main.c
 )
