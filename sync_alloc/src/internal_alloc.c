@@ -17,9 +17,9 @@ typedef struct Header_Context {
 	u8 jump_table_index;
 } __attribute__((aligned(32))) header_context_t;
 
-inline static i32 zero_offset_header(const header_context_t *restrict ctx);
-inline static i32 linear_offset_header(const header_context_t *restrict ctx);
-inline static i32 free_list_header(const header_context_t *restrict ctx);
+static inline i32 zero_offset_header(const header_context_t *restrict ctx);
+static inline i32 linear_offset_header(const header_context_t *restrict ctx);
+static inline i32 free_list_header(const header_context_t *restrict ctx);
 typedef i32 (*header_type_jumptable_t)(const header_context_t *restrict ctx);
 
 header_type_jumptable_t header_jumptable[] = {
@@ -29,15 +29,15 @@ header_type_jumptable_t header_jumptable[] = {
 };
 
 enum {
-	ZERO_OFFSET = 0,
-	FREE_OFFSET = 1,
+	ZERO_OFFSET   = 0,
+	FREE_OFFSET   = 1,
 	LINEAR_OFFSET = 2,
 };
 
 static constexpr u32 JUMPTABLE_LAST_INDEX = (sizeof(header_jumptable) / sizeof(header_jumptable[0])) - 1;
 // clang-format off
 
-pool_header_t *mempool_create_header(const header_context_t *restrict ctx, const uintptr_t offset)
+static pool_header_t *mempool_create_header(const header_context_t *restrict ctx, const uintptr_t offset)
 {
 	if (ctx->jump_table_index != LINEAR_OFFSET) {
 		goto skip_space_check;
@@ -61,10 +61,10 @@ skip_space_check:
 
 	head->allocation_size = ctx->num_bytes;
 	head->chunk_size = pad_chunk_size;
-	head->handle_idx = 0;
+	head->handle_matrix_index = 0;
 	head->bitflags |= (ctx->pool->offset == 0)
-		? F_ALLOCATED | F_FIRST_HEAD
-		: F_ALLOCATED;
+	                  ? F_ALLOCATED | F_FIRST_HEAD
+	                  : F_ALLOCATED;
 
 	u32 *deadzone = (u32 *)((u8 *)head + (pad_chunk_size - DEADZONE_PADDING));
 	*deadzone++ = HEAD_DEADZONE;
@@ -82,7 +82,7 @@ skip_space_check:
 
 		sentinel_head->chunk_size = PD_HEAD_SIZE;
 		sentinel_head->allocation_size = 0;
-		sentinel_head->handle_idx = 0;
+		sentinel_head->handle_matrix_index = 0;
 		sentinel_head->bitflags |= F_SENTINEL | F_FROZEN;
 	}
 done:
@@ -94,26 +94,29 @@ done:
 //}
 
 
-inline static i32 zero_offset_header(const header_context_t *restrict ctx)
+static inline i32 zero_offset_header(const header_context_t *restrict ctx)
 {
 	if (ctx->pool == nullptr || ctx->pool->offset != 0) {
 		return 1;
 	}
 	*ctx->null_head = mempool_create_header(ctx, 0);
-	if (*ctx[0].null_head == nullptr) {
+	if (*ctx->null_head == nullptr) {
 		return 1;
 	}
 	return 0;
 }
 
 
-inline static i32 linear_offset_header(const header_context_t *restrict ctx)
+static inline i32 linear_offset_header(const header_context_t *restrict ctx)
 {
 	const bool pool_is_invalid = (ctx->pool == nullptr || ctx->pool->offset == 0) != 0;
 	if (pool_is_invalid) {
 		return 1;
 	}
-	const bool pool_out_of_space = (ctx->pool->offset + ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING > ctx->pool->size) != 0;
+	const bool pool_out_of_space = (ctx->pool->offset + ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING > ctx->pool
+	                                                                                                          ->
+	                                                                                                          size)
+	                               != 0;
 	if (pool_out_of_space) {
 		return 1;
 	}
@@ -125,7 +128,7 @@ inline static i32 linear_offset_header(const header_context_t *restrict ctx)
 }
 
 
-inline static i32 free_list_header(const header_context_t *restrict ctx)
+static inline i32 free_list_header(const header_context_t *restrict ctx)
 {
 	if (ctx->pool == nullptr || ctx->pool->free_count == 0) {
 		return 1;
@@ -170,7 +173,7 @@ done:
 }
 
 
-i32 find_new_header(header_context_t *restrict ctx)
+static i32 find_new_header(header_context_t *restrict ctx)
 {
 	memory_pool_t *pool_arr[arena_thread->pool_count];
 	const int pool_arr_len = return_pool_array(pool_arr);
@@ -210,4 +213,3 @@ pool_header_t *find_or_create_new_header(const u32 requested_size)
 	update_sentinel_and_free_flags(new_head);
 	return new_head;
 }
-

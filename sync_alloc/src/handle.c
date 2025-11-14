@@ -113,7 +113,7 @@ syn_handle_t create_handle_and_entry(pool_header_t *head)
 	};
 
 	#ifndef SYN_USE_RAW
-	head->handle_idx = new_hdl.handle_matrix_index;
+	head->handle_matrix_index = new_hdl.handle_matrix_index;
 	#endif
 
 

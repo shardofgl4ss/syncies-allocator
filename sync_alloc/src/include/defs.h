@@ -56,6 +56,8 @@
  * 16-byte alignment is optimal for SSE instructions.
  * 32-byte alignment is optimal for AVX instructions.
  * 64-byte alignment is optimal for AVX512 instructions.
+ *
+ * This might be frozen at an alignemnt of 16/32/64 for raw ptr compatibility.
  */
 #ifndef ALIGNMENT
 	#define	ALIGNMENT 16

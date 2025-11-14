@@ -1,12 +1,15 @@
 //
 // Created by SyncShard on 10/16/25.
 //
-// ReSharper disable CppRedundantBooleanExpressionArgument
-// ReSharper disable CppDFAUnreachableCode
+// ReSharper disable CppParameterMayBeConst
 
-#include "include/debug.h"
+#include "debug.h"
+#include "handle.h"
+#include "structs.h"
+#include "types.h"
 #include <stdarg.h>
 #include <stdbit.h>
+#include <stdio.h>
 #include <string.h>
 
 // TODO refactor debug_print_memory_usage() to use new internal struct VLA apis,
@@ -33,9 +36,9 @@ inline void log_stderr(const char *restrict string, va_list arg_list)
 }
 
 
-void log_to_console(void(*log_and_stream)(const char *restrict format, va_list va_args),
-		    const char *restrict str,
-                     ...)
+void log_to_console(void (*log_and_stream)(const char *restrict format, va_list va_args),
+                    const char *restrict str,
+                    ...)
 {
 	/* I've heard it may be undefined to compare fptr's to functions, we'll see :3 */
 

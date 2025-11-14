@@ -4,13 +4,13 @@
 
 #include "alloc_utils.h"
 #include "alloc_init.h"
-#include "include/debug.h"
+#include "debug.h"
 #include "defs.h"
 #include "handle.h"
-#include "helper_functions.h"
 #include "structs.h"
 #include "types.h"
-#include <stdint.h>
+#include <asm-generic/mman-common.h>
+#include <linux/mman.h>
 #include <sys/mman.h>
 
 // Not implemented
@@ -24,16 +24,6 @@ inline int bad_alloc_check(const void *, const int do_checksum)
 }
 
 #else
-
-
-static syn_handle_t *index_table_from_header(pool_header_t *header, const handle_table_t **table)
-{
-}
-
-static syn_handle_t *index_table_from_handle(syn_handle_t *handle, const handle_table_t **table)
-{
-}
-
 
 inline int bad_alloc_check(const syn_handle_t *restrict hdl, const int do_checksum)
 {
@@ -56,43 +46,35 @@ inline int bad_alloc_check(const syn_handle_t *restrict hdl, const int do_checks
 }
 
 
-bool handle_generation_checksum(const syn_handle_t *restrict hdl)
+syn_handle_t *return_handle(const u32 encoded_matrix_index)
 {
-	const usize row = matrix_row_from_handle(hdl);
-	const usize col = matrix_col_from_handle(hdl);
-	const handle_table_t *table = arena_thread->first_hdl_tbl;
-
-	if (row == 1) {
-		goto checksum;
-	}
-	for (usize i = 1; i < row; i++) {
-		table = table->next_table;
-	}
-
-checksum:
-	return (table->handle_entries[col].generation == hdl->generation);
-}
-
-
-void update_table_generation(const syn_handle_t *restrict hdl)
-{
-	if (hdl == nullptr) {
-		return;
-	}
-	const usize row = matrix_row_from_handle(hdl);
-	const usize col = matrix_col_from_handle(hdl);
+	const u32 row = encoded_matrix_index / MAX_TABLE_HNDL_COLS;
+	const u32 col = encoded_matrix_index % MAX_TABLE_HNDL_COLS;
 
 	handle_table_t *table = arena_thread->first_hdl_tbl;
 
 	if (row == 1) {
-		goto update_generation;
-	}
-	for (usize i = 1; i < row; i++) {
-		table = table->next_table;
+		goto done;
 	}
 
-update_generation:
-	table->handle_entries[col].generation++;
+	for (u32 i = 1; i < row; i++) {
+		table = table->next_table;
+	}
+done:
+	// TODO make sure this works, it might be returning a ptr to an invalid stack copy.
+	return &table->handle_entries[col];
+}
+
+
+inline bool handle_generation_checksum(const syn_handle_t *restrict hdl)
+{
+	return ((return_handle(hdl->handle_matrix_index))->generation == hdl->generation);
+}
+
+
+inline void update_table_generation(const u32 encoded_matrix_index)
+{
+	(return_handle(encoded_matrix_index))->generation++;
 }
 
 
@@ -100,14 +82,16 @@ void table_destructor()
 {
 	handle_table_t *table_arr[arena_thread->table_count];
 	const int table_arr_len = return_table_array(table_arr);
+
 	if (table_arr_len == -1) {
 		return;
 	}
+
 	for (int i = 0; i < table_arr_len; i++) {
 		#ifdef ALLOC_DEBUG
 		sync_alloc_log.to_console(log_stdout,
-					  "destroying table at: %p\n",
-					  table_arr[i]);
+		                          "destroying table at: %p\n",
+		                          table_arr[i]);
 		#endif
 		munmap(table_arr[i], PD_HDL_MATRIX_SIZE);
 	}
@@ -116,9 +100,10 @@ void table_destructor()
 
 inline int return_table_array(handle_table_t **arr)
 {
-	if (arena_thread == nullptr || arena_thread->table_count == 0 || arena_thread->first_hdl_tbl == nullptr || arr == nullptr) {
+	if (arena_thread->table_count == 0 || arena_thread->first_hdl_tbl == nullptr) {
 		return 0;
 	}
+
 	handle_table_t *tbl = arena_thread->first_hdl_tbl;
 
 	int idx = 0;
@@ -126,6 +111,7 @@ inline int return_table_array(handle_table_t **arr)
 		arr[idx++] = tbl;
 		tbl = tbl->next_table;
 	}
+
 	return idx;
 }
 #endif
@@ -133,37 +119,26 @@ inline int return_table_array(handle_table_t **arr)
 
 pool_header_t *return_header(void *block_ptr)
 {
-	if (!block_ptr) {
-		return nullptr;
-	}
-	const pool_header_t *header_candidate = nullptr;
 	int search_attempts = 0;
-	int search_offset = PD_HEAD_SIZE;
+	int offset = PD_HEAD_SIZE;
 recheck:
 
-	header_candidate = (pool_header_t *)((u8 *)block_ptr - search_offset);
+	pool_header_t *header_candidate = (pool_header_t *)((u8 *)block_ptr - offset);
 
-	bool is_invalid_header = header_candidate->chunk_size
-	if () {
-
+	// This should search 3 times for the max header offset value of ALIGNMENT.
+	if (search_attempts > 2) {
+		return nullptr;
 	}
-}
 
-syn_handle_t return_handle(pool_header_t *header)
-{
-	const usize row = header->handle_idx / MAX_TABLE_HNDL_COLS;
-	const usize col = header->handle_idx % MAX_TABLE_HNDL_COLS;
+	const bool is_invalid_header = (header_candidate->chunk_size > 0 &&
+	                                header_candidate->chunk_size < MAX_ALLOC_POOL_SIZE) == 0;
 
-	handle_table_t *table = arena_thread->first_hdl_tbl;
-
-	if (row == 1) {
-		goto done;
+	if (is_invalid_header) {
+		offset *= 2;
+		search_attempts++;
+		goto recheck;
 	}
-	for (usize i = 1; i < row; i++) {
-		table = table->next_table;
-	}
-done:
-
+	return header_candidate;
 }
 
 
@@ -175,15 +150,12 @@ int syn_unmap_page(void *restrict mem, const usize bytes)
 
 void *syn_map_page(const usize bytes)
 {
-	return mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+	return mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 }
 
 
 inline int return_pool_array(memory_pool_t **arr)
 {
-	if (arena_thread == nullptr || arena_thread->first_mempool == nullptr || arr == nullptr) {
-		return 0;
-	}
 	memory_pool_t *pool = arena_thread->first_mempool;
 
 	int idx = 0;
@@ -197,9 +169,6 @@ inline int return_pool_array(memory_pool_t **arr)
 
 inline int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool)
 {
-	if (arena_thread == nullptr || pool == nullptr || pool->first_free == nullptr || arr == nullptr) {
-		return 0;
-	}
 	pool_free_node_t *head = pool->first_free;
 
 	int idx = 0;
@@ -207,6 +176,7 @@ inline int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool)
 		arr[idx++] = head;
 		head = head->next_free;
 	}
+
 	return idx;
 }
 
@@ -214,13 +184,15 @@ inline int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool)
 void update_sentinel_and_free_flags(pool_header_t *head)
 {
 	const u32 prev_block_size = (head->bitflags & F_FIRST_HEAD)
-		? 0
-		: (u32)(*((u8 *)head + head->chunk_size)) - (DEADZONE_PADDING / 2);
+	                            ? 0
+	                            : (u32)(*((u8 *)head + head->chunk_size)) - (DEADZONE_PADDING / 2);
+
 	constexpr u32 chunk_overflow = (KIBIBYTE * 128) + 1;
 
 	// Branch inversion doesnt work for bitmaps (or maybe I just dont know how),
 	// so it gets messy here. At least bitflags line up between pool_header_t and
 	// pool_free_node_t, so no casting is needed for setting their bitflags.
+
 	if (prev_block_size > 0 && prev_block_size < chunk_overflow) {
 		pool_header_t *prev_head = (pool_header_t *)((u8 *)head - prev_block_size);
 		if (prev_head->bitflags & F_SENTINEL) {
@@ -268,13 +240,47 @@ void pool_destructor()
 		#ifdef ALLOC_DEBUG
 		if (i != 0) {
 			sync_alloc_log.to_console(log_stdout,
-						  "destroying pool of size: %lu at: %p\n",
-						  pool_arr[i]->size,
-						  pool_arr[i]->heap_base);
+			                          "destroying pool of size: %lu at: %p\n",
+			                          pool_arr[i]->size,
+			                          pool_arr[i]->heap_base);
 		} else {
 			sync_alloc_log.to_console(log_stdout, "destroying core: %p\n", arena_thread);
 		}
 		#endif
 		munmap(pool_arr[i]->heap_base, pool_arr[i]->size);
 	}
+}
+
+
+[[maybe_unused, gnu::pure, nodiscard, deprecated("useless function")]]
+static inline u32 matrix_row_from_header(const pool_header_t *restrict head)
+{
+	return head->handle_matrix_index / MAX_TABLE_HNDL_COLS;
+}
+
+
+[[maybe_unused, gnu::pure, nodiscard, deprecated("useless function")]]
+static inline u32 matrix_col_from_header(const pool_header_t *restrict head)
+{
+	return head->handle_matrix_index % MAX_TABLE_HNDL_COLS;
+}
+
+
+/// @brief Calculates a handle's row via division.
+/// @param hdl The handle to get the row from.
+/// @return the handle index's row.
+[[maybe_unused, gnu::pure, nodiscard, deprecated("useless function")]]
+static inline u32 matrix_row_from_handle(const syn_handle_t *restrict hdl)
+{
+	return hdl->handle_matrix_index / MAX_TABLE_HNDL_COLS;
+}
+
+
+/// @brief Calculates a handle's column via modulo.
+/// @param hdl The handle to get the column from.
+/// @return the handle index's column.
+[[maybe_unused, gnu::pure, nodiscard, deprecated("useless function")]]
+static inline u32 matrix_col_from_handle(const syn_handle_t *restrict hdl)
+{
+	return hdl->handle_matrix_index % MAX_TABLE_HNDL_COLS;
 }

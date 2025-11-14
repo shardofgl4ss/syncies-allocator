@@ -1,8 +1,8 @@
 
+#include "sync_alloc.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <sync_alloc.h>
 
 //#include "syn_memops.h"
 //#include <stdlib.h>
@@ -15,7 +15,7 @@
 //void test_memset();
 
 int main() {
-	const char *textdata = "beepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbeepbee";
+	const char *textdata = "meowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeo";
 	constexpr size_t size = 64;
 	syn_handle_t new_hdl = syn_calloc(size);
 	char *data = syn_freeze(&new_hdl);
@@ -23,7 +23,7 @@ int main() {
 	memcpy(data, textdata, strlen(textdata) + 1);
 	printf("original: %s\nnew: %s\n", textdata, data);
 
-	syn_thaw(&new_hdl);
+	new_hdl = syn_thaw(data);
 	syn_free(&new_hdl);
 	syn_destroy();
 }

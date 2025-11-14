@@ -84,13 +84,13 @@ enum Header_Flags : u16 {
  */
 typedef struct Pool_Header {
 	#ifndef SYN_USE_RAW
-	u32 handle_idx;		/**< Index to the header's handle.		*/
+	u32 handle_matrix_index;	/**< Index to the header's handle.		*/
 	#else
-	u32 magic;
+	u32 magic;			/**< A magic constant to identify a header.	*/
 	#endif
-	u32 allocation_size;	/**< Actual size of the allocation.		*/
-	u32 chunk_size;		/**< Size of the entire chunk, with header.	*/
-	bit32 bitflags;		/**< Enum bitmap for flags.			*/
+	u32 allocation_size;		/**< Actual size of the allocation.		*/
+	u32 chunk_size;			/**< Size of the entire chunk, with header.	*/
+	bit32 bitflags;			/**< Enum bitmap for flags.			*/
 } __attribute__((aligned(16))) pool_header_t;
 
 /**

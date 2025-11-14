@@ -137,10 +137,13 @@ extern void *syn_freeze(syn_handle_t *);
 /**
  * @brief Thaws an allocation, or when the user is done with the allocation.\n
  * The void ptr can no longer be used.
+ *
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
+ * @warning The user is required to update their handle via this function when thawing,
+ * if they are to pass the original handle to other allocator functions.
  */
-[[gnu::visibility("default")]]
-extern syn_handle_t syn_thaw(syn_handle_t *user_handle);
+[[nodiscard, gnu::visibility("default")]]
+extern syn_handle_t syn_thaw(void *block_ptr);
 
 #else
 
