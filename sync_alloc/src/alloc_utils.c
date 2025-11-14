@@ -61,7 +61,6 @@ syn_handle_t *return_handle(const u32 encoded_matrix_index)
 		table = table->next_table;
 	}
 done:
-	// TODO make sure this works, it might be returning a ptr to an invalid stack copy.
 	return &table->handle_entries[col];
 }
 

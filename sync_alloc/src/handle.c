@@ -9,9 +9,6 @@
 #include "types.h"
 #include <stdbit.h>
 
-// TODO refactor handle functions to use new internal struct VLA apis,
-// for more contained tracking of each object
-
 typedef struct Handle_Context {
 	handle_table_t **table_arr;
 	i32 max_table_array_index;
@@ -65,7 +62,7 @@ reloop:
 		return -1;
 	}
 
-	ctx->table_arr[ctx->max_table_array_index] = new_table;
+	ctx->table_arr[ctx->max_table_array_index - 1] = new_table;
 	ctx->max_table_array_index++;
 	ctx->current_index = ctx->max_table_array_index;
 	retried = true;
