@@ -6,7 +6,7 @@
 #define ARENA_ALLOCATOR_DEFS_H
 
 #ifndef __linux__
-	#warning warning: sync_alloc is not supported on platforms except for Linux.
+	#warning warning: sync_alloc is not supported on platforms except for Linux. This may not compile without changes.
 #endif
 
 //#ifndef __x86_64__

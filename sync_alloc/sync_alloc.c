@@ -8,6 +8,7 @@
 #include "alloc_utils.h"
 #include "debug.h"
 #include "defs.h"
+#include "free_node.h"
 #include "internal_alloc.h"
 #include "structs.h"
 #include "syn_memops.h"

@@ -104,20 +104,6 @@ inline int return_pool_array(memory_pool_t **arr)
 }
 
 
-inline int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool)
-{
-	pool_free_node_t *head = pool->first_free;
-
-	int idx = 0;
-	while (idx < pool->free_count && head != nullptr) {
-		arr[idx++] = head;
-		head = head->next_free;
-	}
-
-	return idx;
-}
-
-
 void update_sentinel_and_free_flags(pool_header_t *head)
 {
 	const u32 prev_block_size = (head->bitflags & F_FIRST_HEAD)

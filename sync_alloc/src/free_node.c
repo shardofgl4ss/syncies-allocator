@@ -6,6 +6,20 @@
 #include "structs.h"
 
 
+inline int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool)
+{
+	pool_free_node_t *head = pool->first_free;
+
+	int idx = 0;
+	while (idx < pool->free_count && head != nullptr) {
+		arr[idx++] = head;
+		head = head->next_free;
+	}
+
+	return idx;
+}
+
+
 int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node)
 {
 	if (pool->first_free == nullptr) {

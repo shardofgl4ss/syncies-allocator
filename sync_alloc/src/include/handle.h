@@ -50,6 +50,7 @@ typedef struct Handle_Table {
 	syn_handle_t handle_entries[];		/**< array of entries via FAM. index via entries bit.	*/
 } handle_table_t;
 
+// clang-format on
 
 /// @brief Creates a new handle table. Does not increment table_count by itself, do that before calling.
 ///
@@ -60,11 +61,11 @@ extern handle_table_t *new_handle_table();
 ///
 /// @param head The head to link to the handle.
 /// @return a _hopefully_ valid Arena Handle. handle->addr will be NULL if it fails.
-extern syn_handle_t create_handle_and_entry(pool_header_t * head);
+extern syn_handle_t create_handle_and_entry(pool_header_t *head);
 
 static constexpr u16 PD_HANDLE_SIZE = (sizeof(syn_handle_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 static constexpr u16 PD_TABLE_SIZE = (sizeof(handle_table_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_HDL_MATRIX_SIZE =
-		((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE)) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u16 PD_HDL_MATRIX_SIZE = ((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE))
+                                           + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 
 #endif //ARENA_ALLOCATOR_HANDLE_H

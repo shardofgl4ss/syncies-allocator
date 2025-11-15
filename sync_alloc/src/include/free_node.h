@@ -9,6 +9,7 @@
 
 typedef struct Memory_Pool memory_pool_t;
 
+
 /**
  * 	Freed memory pool block header. in a singly-linked-list style.
  *
@@ -27,9 +28,6 @@ typedef struct Pool_Free_Node {
 } __attribute__((aligned(16))) pool_free_node_t;
 
 
-extern int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node);
-//int free_node_remove(memory_pool_t *pool, pool_free_node_t *free_node);
-
 /**
  *	Instead of walking the free list, this fills a VLA ptr array.
  *	The array is not allocated, it has to be allocated before this function is called.
@@ -42,5 +40,8 @@ extern int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node);
  *	and not mutate the ptrs provided.
  */
 extern int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool);
+
+extern int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node);
+//int free_node_remove(memory_pool_t *pool, pool_free_node_t *free_node);
 
 #endif //ARENA_ALLOCATOR_FREE_NODE_H
