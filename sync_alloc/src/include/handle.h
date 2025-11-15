@@ -7,8 +7,8 @@
 
 #include "defs.h"
 #include "structs.h"
-#include "types.h"
 #include "sync_alloc.h"
+#include "types.h"
 
 // clang-format off
 

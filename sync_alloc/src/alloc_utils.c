@@ -53,21 +53,65 @@ syn_handle_t *return_handle(const u32 encoded_matrix_index)
 
 	handle_table_t *table = arena_thread->first_hdl_tbl;
 
-	if (row == 1) {
-		goto done;
-	}
-
-	for (u32 i = 1; i < row; i++) {
+	for (u32 i = 0; i < row; i++) {
 		table = table->next_table;
 	}
-done:
+
 	return &table->handle_entries[col];
 }
 
 
+memory_pool_t *return_pool(pool_header_t *header)
+{
+	// cursed $!# pointer arithmetic and casting so bad I prolly broke the ABI
+	return *(memory_pool_t **)(((char *)header + header->chunk_size) - ((DEADZONE_PADDING / 2) * 3));
+	// 	pool_header_t *current_head = header;
+	// reloop:
+	// 	if (current_head->bitflags & F_FIRST_HEAD) {
+	// 		return ((memory_pool_t *)((char *)current_head - PD_RESERVED_F_SIZE));
+	// 	}
+	//
+	// 	// If this goes past the boundary and out of bounds, it should terminate instead of infinitely looping.
+	// 	const u32 deadzone_prev_size = *((u32 *)(((char *)current_head + current_head->chunk_size) - (DEADZONE_PADDING / 2)));
+	// 	if (deadzone_prev_size == 0 || deadzone_prev_size > MAX_FIRST_POOL_SIZE) {
+	// 		return nullptr;
+	// 	}
+	//
+	// 	current_head = (pool_header_t *)((char *)current_head - deadzone_prev_size);
+	// 	goto reloop;
+}
+
+
+int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node)
+{
+	if (pool->first_free == nullptr) {
+		pool->first_free = free_node;
+		goto done;
+	}
+	// for now we just add new frees to the end. Might not be temporary.
+
+	pool_free_node_t *current_node = pool->first_free;
+	while (current_node->next_free != nullptr) {
+		current_node = current_node->next_free;
+	}
+
+	current_node->next_free = free_node;
+done:
+	pool->free_count++;
+	return 0;
+}
+
+
+// TODO implement free_node_remove(),
+//int free_node_remove(memory_pool_t *pool, pool_free_node_t *free_node)
+//{
+//	return 0;
+//}
+
+
 inline bool handle_generation_checksum(const syn_handle_t *restrict hdl)
 {
-	return ((return_handle(hdl->handle_matrix_index))->generation == hdl->generation);
+	return ((return_handle(hdl->header->handle_matrix_index))->generation == hdl->generation);
 }
 
 
@@ -94,6 +138,8 @@ void table_destructor()
 		#endif
 		munmap(table_arr[i], PD_HDL_MATRIX_SIZE);
 	}
+	arena_thread->table_count = 0;
+	arena_thread->first_hdl_tbl = nullptr;
 }
 
 
@@ -248,38 +294,4 @@ void pool_destructor()
 		#endif
 		munmap(pool_arr[i]->heap_base, pool_arr[i]->size);
 	}
-}
-
-
-[[maybe_unused, gnu::pure, nodiscard, deprecated("useless function")]]
-static inline u32 matrix_row_from_header(const pool_header_t *restrict head)
-{
-	return head->handle_matrix_index / MAX_TABLE_HNDL_COLS;
-}
-
-
-[[maybe_unused, gnu::pure, nodiscard, deprecated("useless function")]]
-static inline u32 matrix_col_from_header(const pool_header_t *restrict head)
-{
-	return head->handle_matrix_index % MAX_TABLE_HNDL_COLS;
-}
-
-
-/// @brief Calculates a handle's row via division.
-/// @param hdl The handle to get the row from.
-/// @return the handle index's row.
-[[maybe_unused, gnu::pure, nodiscard, deprecated("useless function")]]
-static inline u32 matrix_row_from_handle(const syn_handle_t *restrict hdl)
-{
-	return hdl->handle_matrix_index / MAX_TABLE_HNDL_COLS;
-}
-
-
-/// @brief Calculates a handle's column via modulo.
-/// @param hdl The handle to get the column from.
-/// @return the handle index's column.
-[[maybe_unused, gnu::pure, nodiscard, deprecated("useless function")]]
-static inline u32 matrix_col_from_handle(const syn_handle_t *restrict hdl)
-{
-	return hdl->handle_matrix_index % MAX_TABLE_HNDL_COLS;
 }

@@ -62,13 +62,26 @@ skip_space_check:
 	head->allocation_size = ctx->num_bytes;
 	head->chunk_size = pad_chunk_size;
 	head->handle_matrix_index = 0;
+
+	/* This is to clear the bitflags in case the header is being	*
+	 * placed on a sentinel so it isn't inherited through casts.	*/
+
+	if (head->bitflags & F_SENTINEL || head->bitflags & F_FREE) {
+		head->bitflags = 0;
+	}
 	head->bitflags |= (ctx->pool->offset == 0)
 	                  ? F_ALLOCATED | F_FIRST_HEAD
 	                  : F_ALLOCATED;
 
-	u32 *deadzone = (u32 *)((u8 *)head + (pad_chunk_size - DEADZONE_PADDING));
-	*deadzone++ = HEAD_DEADZONE;
-	*deadzone = head->chunk_size;
+	u32 *deadzone = (u32 *)((u8 *)head + (pad_chunk_size - (DEADZONE_PADDING * 2)));
+	u32 *prev_size_zone = deadzone + 3;
+	uintptr_t *pool_ptr_zone = (uintptr_t *)(deadzone + 1);
+
+	/* DEADZONE--POOL_PTR--PREV_SIZE */
+
+	*deadzone = HEAD_DEADZONE;
+	*prev_size_zone = head->chunk_size;
+	*pool_ptr_zone = (uintptr_t)ctx->pool;
 
 	if (offset == ctx->pool->offset) {
 		ctx->pool->offset += pad_chunk_size;
@@ -94,7 +107,7 @@ done:
 //}
 
 
-static inline i32 zero_offset_header(const header_context_t *restrict ctx)
+static i32 zero_offset_header(const header_context_t *restrict ctx)
 {
 	if (ctx->pool == nullptr || ctx->pool->offset != 0) {
 		return 1;
@@ -107,16 +120,16 @@ static inline i32 zero_offset_header(const header_context_t *restrict ctx)
 }
 
 
-static inline i32 linear_offset_header(const header_context_t *restrict ctx)
+static i32 linear_offset_header(const header_context_t *restrict ctx)
 {
 	const bool pool_is_invalid = (ctx->pool == nullptr || ctx->pool->offset == 0) != 0;
 	if (pool_is_invalid) {
 		return 1;
 	}
-	const bool pool_out_of_space = (ctx->pool->offset + ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING > ctx->pool
-	                                                                                                          ->
-	                                                                                                          size)
-	                               != 0;
+	const bool pool_out_of_space = (ctx->pool->offset
+	                                + ctx->num_bytes
+	                                + PD_HEAD_SIZE
+	                                + DEADZONE_PADDING > ctx->pool->size) != 0;
 	if (pool_out_of_space) {
 		return 1;
 	}
@@ -128,9 +141,9 @@ static inline i32 linear_offset_header(const header_context_t *restrict ctx)
 }
 
 
-static inline i32 free_list_header(const header_context_t *restrict ctx)
+static i32 free_list_header(const header_context_t *restrict ctx)
 {
-	if (ctx->pool == nullptr || ctx->pool->free_count == 0) {
+	if (ctx->pool->first_free == nullptr || ctx->pool->free_count == 0) {
 		return 1;
 	}
 	pool_free_node_t *free_arr[ctx->pool->free_count];
@@ -138,35 +151,45 @@ static inline i32 free_list_header(const header_context_t *restrict ctx)
 	if (!free_arr_len) {
 		return 1;
 	}
+
 	pool_free_node_t *header_candidate;
-	pool_free_node_t *next_free = nullptr;
-	pool_free_node_t *prev_free = nullptr;
-	const u32 chunk_size = ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING;
+	pool_free_node_t *next = nullptr;
+	pool_free_node_t *prev = nullptr;
+
+	const u32 chunk_size = ADD_ALIGNMENT_PADDING(ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING);
 	for (int i = 0; i < free_arr_len; i++) {
 		header_candidate = free_arr[i];
 		// TODO extract free node detachment into its own function for modularity
-		if (header_candidate->size < chunk_size) {
+		if (header_candidate->chunk_size < chunk_size) {
 			continue;
 		}
-		if (header_candidate->size > chunk_size) {
+		if (header_candidate->chunk_size > chunk_size) {
 			continue; // TODO add block splitting
 		}
-		if (header_candidate->next_free && i < free_arr_len - 1) {
-			next_free = free_arr[i + 1];
-		}
 		if (i != 0) {
-			prev_free = free_arr[i - 1];
+			prev = free_arr[i - 1];
 		}
-		if (next_free && prev_free) {
-			prev_free->next_free = next_free;
+		if (i < free_arr_len - 1) {
+			next = free_arr[i + 1];
 		}
-		if (next_free && !prev_free) {
-			ctx->pool->first_free = next_free;
+		if (prev && next) {
+			prev->next_free = next;
+			goto done;
 		}
+		if (prev && next == nullptr) {
+			prev->next_free = nullptr;
+			goto done;
+		}
+		if (next && prev == nullptr) {
+			ctx->pool->first_free = next;
+			goto done;
+		}
+		ctx->pool->first_free = nullptr;
 		goto done;
 	}
 	return 1;
 done:
+	// TODO call unlink/detach free node instead of this.
 	*ctx->null_head = mempool_create_header(ctx, (intptr)header_candidate - (intptr)ctx->pool->mem);
 	ctx->pool->free_count--;
 	return 0;
@@ -180,7 +203,7 @@ static i32 find_new_header(header_context_t *restrict ctx)
 
 	for (int i = 0; i < pool_arr_len; i++) {
 		ctx->pool = pool_arr[i];
-		for (int j = 0; j < JUMPTABLE_LAST_INDEX; j++) {
+		for (int j = 0; j <= JUMPTABLE_LAST_INDEX; j++) {
 			ctx->jump_table_index = j;
 			if (header_jumptable[j](ctx) == 0) {
 				return j + 1; // + 1 so it starts at 1 instead of 0

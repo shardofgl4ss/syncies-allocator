@@ -1,8 +1,8 @@
 
 #include "sync_alloc.h"
 #include <assert.h>
-#include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 
 //#include "syn_memops.h"
 //#include <stdlib.h>
@@ -16,15 +16,39 @@
 
 int main() {
 	const char *textdata = "meowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeo";
-	constexpr size_t size = 64;
-	syn_handle_t new_hdl = syn_calloc(size);
-	char *data = syn_freeze(&new_hdl);
+	constexpr size_t allocation_size = 64;
+	constexpr u_int64_t number_of_allocations = 64;
+	for (int i = 1; i < number_of_allocations; i++) {
+		syn_handle_t hdl = syn_calloc(allocation_size);
 
-	memcpy(data, textdata, strlen(textdata) + 1);
-	printf("original: %s\nnew: %s\n", textdata, data);
+		char *heap_msg = syn_freeze(&hdl);
+		memcpy(heap_msg, textdata, strlen(textdata) + 1);
 
-	new_hdl = syn_thaw(data);
-	syn_free(&new_hdl);
+		assert(!strcmp(textdata, heap_msg));
+		hdl = syn_thaw(heap_msg);
+		if (i == 4 || i == 12 || i == 17 || i == 31 || i == 52) {
+			syn_free(&hdl);
+		}
+	}
+	syn_reset();
+
+	for (int i = 1; i < number_of_allocations; i++) {
+		syn_handle_t hdl;
+		if (i == 9) {
+			hdl = syn_alloc(allocation_size);
+		} else {
+			hdl = syn_alloc(allocation_size);
+		}
+
+		char *heap_msg = syn_freeze(&hdl);
+		memcpy(heap_msg, textdata, strlen(textdata) + 1);
+
+		assert(!strcmp(textdata, heap_msg));
+		hdl = syn_thaw(heap_msg);
+		if (i == 4 || i == 12 || i == 17 || i == 31 || i == 52) {
+			syn_free(&hdl);
+		}
+	}
 	syn_destroy();
 }
 

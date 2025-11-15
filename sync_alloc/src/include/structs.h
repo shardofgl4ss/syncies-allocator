@@ -106,7 +106,7 @@ typedef struct Pool_Header {
  */
 typedef struct Pool_Free_Node {
 	struct Pool_Free_Node *next_free;
-	u32 size;
+	u32 chunk_size;
 	bit32 bitflags;
 } __attribute__((aligned(16))) pool_free_node_t;
 

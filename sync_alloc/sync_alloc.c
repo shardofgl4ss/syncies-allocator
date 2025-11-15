@@ -38,12 +38,16 @@ void syn_destroy()
 
 void syn_reset()
 {
-	if (arena_thread == nullptr || arena_thread->pool_count == 0) {
+	if (arena_thread == nullptr) {
 		sync_alloc_log.to_console(log_stderr, "syn_reset() called without an allocated arena!\n");
 		return;
 	}
+
 	if (arena_thread->pool_count == 1) {
 		arena_thread->first_mempool->offset = 0;
+		arena_thread->first_mempool->free_count = 0;
+		arena_thread->first_mempool->first_free = nullptr;
+		table_destructor();
 		return;
 	}
 
@@ -58,7 +62,11 @@ void syn_reset()
 		syn_unmap_page(pool_arr[i]->mem, pool_arr[i]->size);
 	}
 
+	pool_arr[0]->offset = 0;
+	pool_arr[0]->free_count = 0;
 	pool_arr[0]->next_pool = nullptr;
+	pool_arr[0]->first_free = nullptr;
+	table_destructor();
 }
 
 
@@ -116,7 +124,7 @@ inline syn_handle_t syn_calloc(const usize size)
 {
 	const syn_handle_t hdl = syn_alloc(size);
 	const bool is_invalid_hdl = (hdl.generation == UINT32_MAX ||
-	                             hdl.handle_matrix_index == UINT32_MAX ||
+	                             hdl.header->handle_matrix_index == UINT32_MAX ||
 	                             hdl.header == nullptr) != 0;
 
 	if (is_invalid_hdl) {
@@ -130,7 +138,7 @@ inline syn_handle_t syn_calloc(const usize size)
 
 void syn_free(syn_handle_t *restrict user_handle)
 {
-	if (bad_alloc_check(user_handle, 1) != 0) {
+	if (bad_alloc_check(user_handle, 1)) {
 		return;
 	}
 
@@ -145,6 +153,24 @@ void syn_free(syn_handle_t *restrict user_handle)
 	head->bitflags |= F_FREE;
 	user_handle->generation++;
 	user_handle->addr = nullptr;
+
+	const u32 row = head->handle_matrix_index / MAX_TABLE_HNDL_COLS;
+	const u32 col = head->handle_matrix_index % MAX_TABLE_HNDL_COLS;
+
+	handle_table_t *table = arena_thread->first_hdl_tbl;
+
+	for (u32 i = 1; i < row; i++) {
+		table = table->next_table;
+	}
+
+	table->entries_bitmap &= ~(1ULL << col);
+	memory_pool_t *pool = return_pool(head);
+
+	// TODO move all free header handling to its own free_node.c file. Some handling is in alloc_utils.c/.h
+
+	pool_free_node_t *node = (pool_free_node_t *)head;
+	node->next_free = nullptr;
+	free_node_add(pool, node);
 
 	update_sentinel_and_free_flags(head);
 }
@@ -185,7 +211,7 @@ int syn_realloc(syn_handle_t *restrict user_handle, const usize size)
 	old_head->bitflags &= ~F_ALLOCATED;
 	old_head->bitflags |= F_FREE;
 
-	update_table_generation(user_handle->handle_matrix_index);
+	update_table_generation(user_handle->header->handle_matrix_index);
 	return 0;
 }
 
@@ -199,7 +225,7 @@ void *syn_freeze(syn_handle_t *restrict user_handle)
 	user_handle->header->bitflags |= F_FROZEN;
 	user_handle->addr = (void *)BLOCK_ALIGN_PTR(user_handle->header, ALIGNMENT);
 
-	update_table_generation(user_handle->handle_matrix_index);
+	update_table_generation(user_handle->header->handle_matrix_index);
 	return user_handle->addr;
 }
 
@@ -210,7 +236,7 @@ syn_handle_t syn_thaw(void *restrict block_ptr)
 		return invalid_block();
 	}
 
-	const pool_header_t *head = return_header(block_ptr);
+	pool_header_t *head = return_header(block_ptr);
 	if (!head) {
 		sync_alloc_log.to_console(log_stderr, "invalid block_ptr!\n");
 		return invalid_block();
@@ -220,6 +246,8 @@ syn_handle_t syn_thaw(void *restrict block_ptr)
 
 	table_hdl->generation++;
 	user_hdl.generation++;
+
+	head->bitflags &= ~F_FROZEN;
 
 	return user_hdl;
 }

@@ -7,7 +7,8 @@
 
 #include "defs.h"
 #include "structs.h"
-#include "types.h"
+#include <stddef.h>
+#include <sys/types.h>
 
 #ifdef SYN_ALLOC_HANDLE
 /**
@@ -29,8 +30,8 @@
 typedef struct Syn_Handle {
 	void *addr;			/**< address to the user's block. Equivalent to *header + sizeof(header). */
 	pool_header_t *header;		/**< pointer to the sentinel header of the user's block.		  */
-	u32 generation;			/**< generation of pointer, to detect stale handles and use-after-frees.  */
-	u32 handle_matrix_index;	/**< flattened matrix index.						  */
+	u_int32_t generation;			/**< generation of pointer, to detect stale handles and use-after-frees.  */
+	//u_int32_t handle_matrix_index;	/**< flattened matrix index.						  */
 } __attribute__((aligned (32))) syn_handle_t;
 #endif
 
@@ -59,7 +60,7 @@ typedef enum {
 extern void syn_destroy();
 
 /**
- * @brief "Fake clears", or resets, all allocations. Less overhead then freeing all.
+ * @brief "Fake clears", or resets, all allocations. Less overhead then destroying the arena.
  *
  * @details This does deallocate allocations, but only excess pools and handle tables are deallocated.\n
  * The first memory pool and handle table are kept, but reset to their original no-allocations state.\n
@@ -96,12 +97,20 @@ extern int syn_check_integrity(struct Arena_Handle *user_hdl);
  *
  * @note All size is rounded up to the nearest value of ALIGNMENT, and a minimum valid size is 8 bytes.
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
+ *
+ * @warning Long term use of pools will build up heap junk data, if you need a zeroed allocation, use syn_calloc.
  */
 [[nodiscard, gnu::visibility("default")]]
-extern syn_handle_t syn_alloc(usize size);
+extern syn_handle_t syn_alloc(size_t size);
 
+/**
+ * @brief Allocates a new block of memory, guaranteed to be zeroed.
+ *
+ * @param size How many bytes to allocate to the heap.
+ * @return arena handle to the user, instead of a voidptr.
+ */
 [[nodiscard, gnu::visibility("default")]]
-extern syn_handle_t syn_calloc(usize size);
+extern syn_handle_t syn_calloc(size_t size);
 
 /**
  * @brief Marks an allocated block as free, then performs defragmentation.
@@ -120,7 +129,7 @@ extern void syn_free(syn_handle_t *user_handle);
  * @warning If the arena_thread is NULL, or if corruption is detected, the library will terminate.
  */
 [[nodiscard, gnu::visibility("default")]]
-extern int syn_realloc(syn_handle_t *, usize size);
+extern int syn_realloc(syn_handle_t *, size_t size);
 
 
 /**

@@ -19,6 +19,7 @@
 extern _Thread_local arena_t *arena_thread;
 
 
+[[maybe_unused]]
 #ifdef SYN_USE_RAW
 static inline void *invalid_block()
 {
@@ -31,23 +32,27 @@ static inline syn_handle_t invalid_block()
 {
 	const syn_handle_t hdl = {
 		.generation = UINT32_MAX,
-		.handle_matrix_index = UINT32_MAX,
 		.addr = nullptr,
 		.header = nullptr,
 	};
 	return hdl;
 }
 
+
 extern int bad_alloc_check(const syn_handle_t *restrict hdl, int do_checksum);
 
 extern syn_handle_t *return_handle(u32 encoded_matrix_index);
+
+extern memory_pool_t *return_pool(pool_header_t *header);
+
+extern int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node);
+
 /**
  * Handle generation checksum.
  *
  * @param hdl the handle to checksum.
  * @return returns true if checksum with the handle and entry is true, and false if not.
  */
-
 extern bool handle_generation_checksum(const syn_handle_t *restrict hdl);
 
 
@@ -114,7 +119,7 @@ extern int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool);
 [[maybe_unused]]
 inline static bool corrupt_header_check(pool_header_t *restrict head)
 {
-	return (*(u32 *)((char *)head + (head->chunk_size - DEADZONE_PADDING)) != HEAD_DEADZONE);
+	return (*(u32 *)((char *)head + (head->chunk_size - (DEADZONE_PADDING * 2))) != HEAD_DEADZONE);
 }
 
 

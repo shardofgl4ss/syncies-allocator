@@ -88,6 +88,12 @@ static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) &&
 	(((char *)(ptr) & ((align) - 1)) == 0)
 
 #define ALLOC_DEBUG 1
+
+/* This isnt actually padding. Should do something about that. But meh.	*
+ * Headers divide this by 2 to fit both a pointer to the pool, and the	*
+ * previous chunk size. Due to this, each allocation carries an extra	*
+ * ~32 bytes. I will implement slabs to remedy this later,		*
+ * since these pools are meant for medium sized allocations.		*/
 #define DEADZONE_PADDING sizeof(u64)
 
 #define KIBIBYTE 1024
