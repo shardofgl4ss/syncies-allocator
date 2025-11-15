@@ -6,12 +6,8 @@
 #define ARENA_ALLOCATOR_ALLOC_UTILS_H
 
 #include "defs.h"
-
-#ifdef SYN_ALLOC_HANDLE
-#include "handle.h"
-#endif
-
 #include "structs.h"
+#include "sync_alloc.h"
 #include "types.h"
 #include <stdint.h>
 #include <sys/mman.h>
@@ -43,25 +39,6 @@ extern int bad_alloc_check(const syn_handle_t *restrict hdl, int do_checksum);
 
 extern memory_pool_t *return_pool(pool_header_t *header);
 
-extern int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node);
-
-/**
- * Handle generation checksum.
- *
- * @param hdl the handle to checksum.
- * @return returns true if checksum with the handle and entry is true, and false if not.
- */
-extern bool handle_generation_checksum(const syn_handle_t *restrict hdl);
-
-
-/** Updates the entry's generation. */
-extern void update_table_generation(u32 encoded_matrix_index);
-
-
-extern void table_destructor();
-
-[[maybe_unused]]
-extern int return_table_array(handle_table_t **arr);
 #endif
 
 extern pool_header_t *return_header(void *block_ptr);
@@ -93,20 +70,6 @@ extern void *syn_map_page(usize bytes);
  */
 [[maybe_unused]]
 extern int return_pool_array(memory_pool_t **arr);
-
-/**
- * Instead of walking the free list, this fills a VLA ptr array.
- * The array is not allocated, it has to be allocated before this function is called.
- *
- * @param arr The stack-allocated VLA to fill.
- * @param pool Which pool to walk the free list with.
- * @return How many free headers were found, equates directly to max index.
- *
- * @warning If any parameter is NULL or there is no list, this will return zero,
- * and not mutate the ptrs provided.
- */
-
-extern int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool);
 
 /**
  * Checks for corruption in a given header.
@@ -142,7 +105,6 @@ inline static bool corrupt_pool_check(memory_pool_t *pool)
  * to the next non-free, then updates head->chunk_size of the first free.
  * will occur. If false, heavy defragmentation will occur.
  */
-
 extern void defragment_pool();
 
 
@@ -151,7 +113,6 @@ extern void defragment_pool();
  *
  * @param head The header to index.
  */
-
 extern void update_sentinel_and_free_flags(pool_header_t *head);
 
 

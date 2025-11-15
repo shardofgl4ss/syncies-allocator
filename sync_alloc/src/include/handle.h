@@ -12,9 +12,21 @@
 
 // clang-format off
 
+/**
+ * @brief Handle generation checksum.
+ * @param hdl The handle to verify
+ * @return Returns true if they do not match, false if they don't.
+ */
+extern bool handle_generation_checksum(const syn_handle_t *restrict hdl);
+
+/** Updates the entry's generation. */
+extern void update_table_generation(u32 encoded_matrix_index);
+
+extern void table_destructor();
+
+extern int return_table_array(handle_table_t **arr);
 
 extern syn_handle_t *return_handle(u32 encoded_matrix_index);
-
 
 /**
  * 	Table of user allocations.

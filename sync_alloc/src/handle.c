@@ -4,10 +4,64 @@
 
 #include "handle.h"
 #include "alloc_utils.h"
+#include "debug.h"
 #include "defs.h"
 #include "structs.h"
 #include "types.h"
 #include <stdbit.h>
+
+
+inline bool handle_generation_checksum(const syn_handle_t *restrict hdl)
+{
+	return ((return_handle(hdl->header->handle_matrix_index))->generation == hdl->generation);
+}
+
+
+
+inline void update_table_generation(const u32 encoded_matrix_index)
+{
+	(return_handle(encoded_matrix_index))->generation++;
+}
+
+
+void table_destructor()
+{
+	handle_table_t *table_arr[arena_thread->table_count];
+	const int table_arr_len = return_table_array(table_arr);
+
+	if (table_arr_len == -1) {
+		return;
+	}
+
+	for (int i = 0; i < table_arr_len; i++) {
+		#ifdef ALLOC_DEBUG
+		sync_alloc_log.to_console(log_stdout,
+		                          "destroying table at: %p\n",
+		                          table_arr[i]);
+		#endif
+		syn_unmap_page(table_arr[i], PD_HDL_MATRIX_SIZE);
+	}
+	arena_thread->table_count = 0;
+	arena_thread->first_hdl_tbl = nullptr;
+}
+
+
+inline int return_table_array(handle_table_t **arr)
+{
+	if (arena_thread->table_count == 0 || arena_thread->first_hdl_tbl == nullptr) {
+		return 0;
+	}
+
+	handle_table_t *tbl = arena_thread->first_hdl_tbl;
+
+	int idx = 0;
+	while (idx < arena_thread->pool_count && tbl != nullptr) {
+		arr[idx++] = tbl;
+		tbl = tbl->next_table;
+	}
+
+	return idx;
+}
 
 
 inline syn_handle_t *return_handle(const u32 encoded_matrix_index)

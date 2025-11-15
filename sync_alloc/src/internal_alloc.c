@@ -5,6 +5,7 @@
 #include "internal_alloc.h"
 #include "alloc_utils.h"
 #include "defs.h"
+#include "free_node.h"
 #include "structs.h"
 #include "types.h"
 #include <stdint.h>

@@ -6,6 +6,7 @@
 #define ARENA_ALLOCATOR_STRUCTS_H
 
 #include "defs.h"
+#include "free_node.h"
 #include "types.h"
 #include <stdio.h>
 
@@ -93,22 +94,6 @@ typedef struct Pool_Header {
 	bit32 bitflags;			/**< Enum bitmap for flags.			*/
 } __attribute__((aligned(16))) pool_header_t;
 
-/**
- * 	Freed memory pool block header. in a singly-linked-list style.
- *
- * 	@details
- * 	Casting a header to and from pool_free_header_t and pool_header_t,
- * 	will preserve size and bitflags, but not preserve pool_free_node_t's 
- * 	next_free or pool_header_t's handle_idx.
- *
- *	@details
- *	see Pool_Header for more details.
- */
-typedef struct Pool_Free_Node {
-	struct Pool_Free_Node *next_free;
-	u32 chunk_size;
-	bit32 bitflags;
-} __attribute__((aligned(16))) pool_free_node_t;
 
 /**
  * 	Extended pool header, for use in the huge page pools only.

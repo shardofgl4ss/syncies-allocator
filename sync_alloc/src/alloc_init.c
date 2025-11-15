@@ -4,7 +4,6 @@
 
 #include "alloc_init.h"
 #include "alloc_utils.h"
-#include "include/debug.h"
 #include "defs.h"
 #include "handle.h"
 #include "structs.h"
@@ -14,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include "include/debug.h"
 #include <sys/mman.h>
 
 _Thread_local arena_t *arena_thread = nullptr;
