@@ -9,11 +9,25 @@
 #include "types.h"
 
 
+/// @brief Destroys a heap allocation. Just a wrapper for mmap() to reduce includes.
+/// @param mem The heap to destroy.
+/// @param bytes The size of the heap.
+/// @return 0 if successful, -1 for errors.
+extern int syn_unmap_page(void *restrict mem, usize bytes);
+
+
+/// @brief Allocates memory via mmap(). Each map is marked NORESERVE and ANONYMOUS.
+/// Just a wrapper for mmap() to reduce includes.
+/// @param bytes How many bytes to allocate.
+/// @return voidptr to the heap region.
+[[nodiscard, gnu::malloc(syn_unmap_page, 1), gnu::alloc_size(1)]]
+extern void *syn_map_page(usize bytes);
+
+
 /// @brief Creates a new arena in thread-local storage. Each thread must create its own arena.
 /// @return 0 on success, -1 on failure.
 ///
 /// @warning The arena ptr in TLS will be a nullptr if there is not enough memory.
-[[gnu::visibility("hidden")]]
 extern int arena_init();
 
 /// @brief Creates a new memory pool.
@@ -22,13 +36,11 @@ extern int arena_init();
 ///
 ///	@note Handles linking pools, and updating the total_mem_size in the arena struct.
 ///	@warning Returns NULL if allocating a new pool fails, or if provided size is zero.
-[[gnu::visibility("hidden")]]
 extern memory_pool_t *pool_init(u32 size);
 
 /// @brief Terminates the program upon a catastrophic error,
 /// such as the core context of the allocator being NULL/nullptr.
 /// @param panic_msg The emergency message to print.
-[[gnu::visibility("hidden")]]
 _Noreturn extern void syn_panic(const char *panic_msg);
 
 #endif //ARENA_ALLOCATOR_ALLOC_INIT_H

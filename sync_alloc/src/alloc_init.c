@@ -19,6 +19,18 @@
 _Thread_local arena_t *arena_thread = nullptr;
 
 
+int syn_unmap_page(void *restrict mem, const usize bytes)
+{
+	return munmap(mem, bytes);
+}
+
+
+void *syn_map_page(const usize bytes)
+{
+	return mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+}
+
+
 int arena_init()
 {
 	void *raw_pool = syn_map_page((MAX_FIRST_POOL_SIZE + (ALIGNMENT - 1)) & (usize)~(ALIGNMENT - 1));
@@ -101,7 +113,6 @@ memory_pool_t *pool_init(const u32 size)
 		return nullptr;
 	}
 	memory_pool_t *prev_pool = pool[pool_arr_len - 1];
-	//new_pool->prev_pool = new_pool;
 	prev_pool->next_pool = new_pool;
 
 	arena_thread->total_arena_bytes += new_pool->size;

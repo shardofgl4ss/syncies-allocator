@@ -6,12 +6,10 @@
 #include "alloc_init.h"
 #include "debug.h"
 #include "defs.h"
+#include "free_node.h"
 #include "handle.h"
 #include "structs.h"
 #include "types.h"
-#include <asm-generic/mman-common.h>
-#include <linux/mman.h>
-#include <sys/mman.h>
 
 // Not implemented
 // void
@@ -90,18 +88,6 @@ recheck:
 		goto recheck;
 	}
 	return header_candidate;
-}
-
-
-int syn_unmap_page(void *restrict mem, const usize bytes)
-{
-	return munmap(mem, bytes);
-}
-
-
-void *syn_map_page(const usize bytes)
-{
-	return mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 }
 
 
@@ -198,6 +184,6 @@ void pool_destructor()
 			sync_alloc_log.to_console(log_stdout, "destroying core: %p\n", arena_thread);
 		}
 		#endif
-		munmap(pool_arr[i]->heap_base, pool_arr[i]->size);
+		syn_unmap_page(pool_arr[i]->heap_base, pool_arr[i]->size);
 	}
 }

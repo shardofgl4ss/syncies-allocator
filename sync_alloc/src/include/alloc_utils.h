@@ -10,7 +10,6 @@
 #include "sync_alloc.h"
 #include "types.h"
 #include <stdint.h>
-#include <sys/mman.h>
 
 extern _Thread_local arena_t *arena_thread;
 
@@ -42,20 +41,6 @@ extern memory_pool_t *return_pool(pool_header_t *header);
 #endif
 
 extern pool_header_t *return_header(void *block_ptr);
-
-/// @brief Destroys a heap allocation. Just a wrapper for mmap() to reduce includes.
-/// @param mem The heap to destroy.
-/// @param bytes The size of the heap.
-/// @return 0 if successful, -1 for errors.
-extern int syn_unmap_page(void *restrict mem, usize bytes);
-
-
-/// @brief Allocates memory via mmap(). Each map is marked NORESERVE and ANONYMOUS.
-/// Just a wrapper for mmap() to reduce includes.
-/// @param bytes How many bytes to allocate.
-/// @return voidptr to the heap region.
-[[nodiscard, gnu::malloc(munmap, 1), gnu::alloc_size(1)]]
-extern void *syn_map_page(usize bytes);
 
 
 /**
