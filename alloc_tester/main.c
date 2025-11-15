@@ -30,7 +30,7 @@ int main() {
 			}
 		}
 	}
-	syn_reset();
+	syn_destroy();
 
 	for (int i = 1; i < number_of_allocations; i++) {
 		const size_t allocation_size = rand() % ((upper_limit + lower_limit + 1) + lower_limit);

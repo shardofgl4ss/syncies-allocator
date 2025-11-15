@@ -54,21 +54,13 @@ skip_header:
 memory_pool_t *return_pool(pool_header_t *header)
 {
 	// cursed $!# pointer arithmetic and casting so bad I prolly broke the ABI
-	return *(memory_pool_t **)(((char *)header + header->chunk_size) - ((DEADZONE_PADDING / 2) * 3));
-	// 	pool_header_t *current_head = header;
-	// reloop:
-	// 	if (current_head->bitflags & F_FIRST_HEAD) {
-	// 		return ((memory_pool_t *)((char *)current_head - PD_RESERVED_F_SIZE));
-	// 	}
-	//
-	// 	// If this goes past the boundary and out of bounds, it should terminate instead of infinitely looping.
-	// 	const u32 deadzone_prev_size = *((u32 *)(((char *)current_head + current_head->chunk_size) - (DEADZONE_PADDING / 2)));
-	// 	if (deadzone_prev_size == 0 || deadzone_prev_size > MAX_FIRST_POOL_SIZE) {
-	// 		return nullptr;
-	// 	}
-	//
-	// 	current_head = (pool_header_t *)((char *)current_head - deadzone_prev_size);
-	// 	goto reloop;
+	memory_pool_t *tmp;
+	if (header->bitflags & F_FIRST_HEAD) {
+		tmp = *(memory_pool_t **)(((char *)header - ALIGNMENT));
+		return tmp;
+	}
+	tmp = *(memory_pool_t **)(((char *)header - ALIGNMENT) + (DEADZONE_PADDING / 2));
+	return tmp;
 }
 #endif
 

@@ -27,7 +27,7 @@ typedef struct Pool_Free_Node {
 	bit32 bitflags;
 } __attribute__((aligned(16))) pool_free_node_t;
 
-extern int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node);
+extern int free_node_add(pool_free_node_t *free_node);
 pool_free_node_t *free_node_remove(memory_pool_t *pool, u32 size);
 
 /**

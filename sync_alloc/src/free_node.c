@@ -3,11 +3,12 @@
 //
 
 #include "free_node.h"
+#include "alloc_utils.h"
 #include "defs.h"
 #include "structs.h"
 #include "types.h"
 
-static constexpr u32 MAX_ADDED_CHUNK_SIZE = (ALIGNMENT + (DEADZONE_PADDING * 2));
+//static constexpr u32 MAX_ADDED_CHUNK_SIZE = (ALIGNMENT + (DEADZONE_PADDING * 2));
 
 
 static inline pool_free_node_t *index_free_list_end(pool_free_node_t *first_node, const u32 max_index)
@@ -22,10 +23,11 @@ static inline pool_free_node_t *index_free_list_end(pool_free_node_t *first_node
 
 static bool node_has_equal_size(const pool_free_node_t *node_current, const u32 allocation_size)
 {
-	if (node_current->chunk_size - MAX_ADDED_CHUNK_SIZE > allocation_size) {
+	const u32 pad_chunk_size = ADD_ALIGNMENT_PADDING(allocation_size + PD_HEAD_SIZE + DEADZONE_PADDING);
+	if (node_current->chunk_size > pad_chunk_size) {
 		return false;
 	}
-	if (node_current->chunk_size - MAX_ADDED_CHUNK_SIZE < allocation_size) {
+	if (node_current->chunk_size < pad_chunk_size) {
 		return false;
 	}
 	return true;
@@ -83,8 +85,9 @@ found:
 }
 
 
-int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node)
+int free_node_add(pool_free_node_t *free_node)
 {
+	memory_pool_t *pool = return_pool((pool_header_t *)free_node);
 	if (pool->first_free == nullptr) {
 		pool->first_free = free_node;
 		goto done;

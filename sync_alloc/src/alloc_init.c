@@ -57,7 +57,8 @@ int arena_init()
 	// making it appear at: 00 00 00 00 ad de ad de, if ARM requires a double-quadword r/w alignment, itll have
 	// to be pushed back by 8 bytes. Itll be fine if it just needs quadword alignment though.
 	u64 *deadzone = (u64 *)((char *)first_pool->mem - DEADZONE_PADDING);
-	*deadzone = POOL_DEADZONE;
+	*deadzone-- = POOL_DEADZONE;
+	*((memory_pool_t **)deadzone) = first_pool;
 
 	first_pool->offset = 0;
 	first_pool->size = MAX_FIRST_POOL_SIZE;

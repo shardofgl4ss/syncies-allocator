@@ -54,12 +54,16 @@ static pool_header_t *mempool_create_header(const header_context_t *restrict ctx
 	}
 
 skip_space_check:
-	pool_header_t *head = (pool_header_t *)((u8 *)ctx->pool->mem + offset);
+	pool_header_t *head = (pool_header_t *)((char *)ctx->pool->mem + offset);
 	{
 		const pool_header_t tmp = {};
 		const bit32 tmp_bitmap = head->bitflags;
 		*head = tmp;
 		head->bitflags = tmp_bitmap;
+	}
+
+	if (ctx->num_bytes == 64) {
+		int x = 0;
 	}
 
 	const uintptr_t relative_alignment_offset = ALIGN_PTR(head, ALIGNMENT) - (uintptr_t)head;
@@ -73,22 +77,32 @@ skip_space_check:
 	/* This is to clear the bitflags in case the header is being	*
 	 * placed on a sentinel so it isn't inherited through casts.	*/
 
-	if (head->bitflags & F_SENTINEL || head->bitflags & F_FREE) {
-		head->bitflags = 0;
+	if (head->bitflags & F_SENTINEL) {
+		head->bitflags &= ~F_SENTINEL;
 	}
+	if (head->bitflags & F_FREE) {
+		head->bitflags &= ~F_FREE;
+	}
+	if (head->bitflags & F_FROZEN) {
+		head->bitflags &= ~F_FROZEN;
+	}
+
 	head->bitflags |= (ctx->pool->offset == 0)
 	                  ? F_ALLOCATED | F_FIRST_HEAD
 	                  : F_ALLOCATED;
 
-	u32 *deadzone = (u32 *)((u8 *)head + (pad_chunk_size - (DEADZONE_PADDING * 2)));
-	uintptr_t *pool_ptr_zone = (uintptr_t *)(deadzone + 1);
-	u32 *prev_size_zone = deadzone + 3;
+	constexpr u32 quarter_size_zone = DEADZONE_PADDING / 2;
+	const char *const base_zone = (char *)head + (pad_chunk_size - ALIGNMENT);
+
+	u32 *deadzone = (u32 *)(base_zone);
+	uintptr_t *pool_ptr_zone = (uintptr_t *)(base_zone + quarter_size_zone);
+	u32 *prev_size_zone = (u32 *)(base_zone + (quarter_size_zone * 3));
 
 	/* DEADZONE (4)--POOL_PTR (8)--PREV_SIZE (4) */
 
 	*deadzone = HEAD_DEADZONE;
-	*prev_size_zone = head->chunk_size;
 	*pool_ptr_zone = (uintptr_t)ctx->pool;
+	*prev_size_zone = head->chunk_size;
 
 	if (offset == ctx->pool->offset) {
 		ctx->pool->offset += pad_chunk_size;
@@ -98,6 +112,7 @@ skip_space_check:
 			goto done;
 		}
 
+		//head->bitflags |= F_SENTINEL;
 		pool_header_t *sentinel_head = (pool_header_t *)((u8 *)ctx->pool->mem + ctx->pool->offset);
 
 		sentinel_head->chunk_size = PD_HEAD_SIZE;

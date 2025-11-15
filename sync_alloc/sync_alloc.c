@@ -165,13 +165,10 @@ void syn_free(syn_handle_t *restrict user_handle)
 	}
 
 	table->entries_bitmap &= ~(1ULL << col);
-	memory_pool_t *pool = return_pool(head);
-
-	// TODO move all free header handling to its own free_node.c file. Some handling is in alloc_utils.c/.h
 
 	pool_free_node_t *node = (pool_free_node_t *)head;
 	node->next_node = nullptr;
-	free_node_add(pool, node);
+	free_node_add(node);
 
 	update_sentinel_and_free_flags(head);
 }
