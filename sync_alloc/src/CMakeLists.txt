@@ -26,6 +26,5 @@ target_sources(sync_alloc
 			   include/huge_page.h
 			   include/slab.h
 			   include/alloc_utils.h
-			   include/helper_functions.h
 			   include/debug.h
 )
