@@ -29,7 +29,10 @@ int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node)
 	// for now we just add new frees to the end. Might not be temporary.
 
 	pool_free_node_t *current_node = pool->first_free;
-	while (current_node->next_free != nullptr) {
+	for (int i = 0; i < pool->free_count - 1; i++) {
+		//if (current_node->next_free == nullptr) {
+		//	break;
+		//}
 		current_node = current_node->next_free;
 	}
 

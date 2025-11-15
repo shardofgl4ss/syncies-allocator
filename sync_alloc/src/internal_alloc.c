@@ -78,7 +78,7 @@ skip_space_check:
 	u32 *prev_size_zone = deadzone + 3;
 	uintptr_t *pool_ptr_zone = (uintptr_t *)(deadzone + 1);
 
-	/* DEADZONE--POOL_PTR--PREV_SIZE */
+	/* DEADZONE (4)--POOL_PTR (8)--PREV_SIZE (4) */
 
 	*deadzone = HEAD_DEADZONE;
 	*prev_size_zone = head->chunk_size;

@@ -2,50 +2,42 @@
 #include "sync_alloc.h"
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
+#include <time.h>
 #include <sys/types.h>
 
-//#include "syn_memops.h"
-//#include <stdlib.h>
-//#include <string.h>
-//#include <time.h>
-//static constexpr int upper_limit = 1000;
-//static constexpr int lower_limit = 10;
-
-//void test_memcpy();
-//void test_memset();
+static constexpr int upper_limit = 1024;
+static constexpr int lower_limit = 32;
 
 int main() {
-	const char *textdata = "meowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeo";
-	constexpr size_t allocation_size = 64;
+	srand(time(nullptr));
+	//const char *textdata = "meowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeo";
 	constexpr u_int64_t number_of_allocations = 64;
 	for (int i = 1; i < number_of_allocations; i++) {
+		const size_t allocation_size = (rand() % (upper_limit + lower_limit + 1)) + lower_limit;
 		syn_handle_t hdl = syn_calloc(allocation_size);
 
 		char *heap_msg = syn_freeze(&hdl);
-		memcpy(heap_msg, textdata, strlen(textdata) + 1);
+		memset(heap_msg, 'a', allocation_size);
 
-		assert(!strcmp(textdata, heap_msg));
+		//assert(!strcmp(textdata, heap_msg));
 		hdl = syn_thaw(heap_msg);
-		if (i == 4 || i == 12 || i == 17 || i == 31 || i == 52) {
+		if (i & 1) {
 			syn_free(&hdl);
 		}
 	}
 	syn_reset();
 
 	for (int i = 1; i < number_of_allocations; i++) {
+		const size_t allocation_size = (rand() % (upper_limit + lower_limit + 1)) + lower_limit;
 		syn_handle_t hdl;
-		if (i == 9) {
-			hdl = syn_alloc(allocation_size);
-		} else {
-			hdl = syn_alloc(allocation_size);
-		}
 
 		char *heap_msg = syn_freeze(&hdl);
-		memcpy(heap_msg, textdata, strlen(textdata) + 1);
+		memset(heap_msg, 'a', allocation_size);
 
-		assert(!strcmp(textdata, heap_msg));
+		//assert(!strcmp(textdata, heap_msg));
 		hdl = syn_thaw(heap_msg);
-		if (i == 4 || i == 12 || i == 17 || i == 31 || i == 52) {
+		if (i % 2) {
 			syn_free(&hdl);
 		}
 	}
