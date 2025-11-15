@@ -46,21 +46,6 @@ inline int bad_alloc_check(const syn_handle_t *restrict hdl, const int do_checks
 }
 
 
-syn_handle_t *return_handle(const u32 encoded_matrix_index)
-{
-	const u32 row = encoded_matrix_index / MAX_TABLE_HNDL_COLS;
-	const u32 col = encoded_matrix_index % MAX_TABLE_HNDL_COLS;
-
-	handle_table_t *table = arena_thread->first_hdl_tbl;
-
-	for (u32 i = 0; i < row; i++) {
-		table = table->next_table;
-	}
-
-	return &table->handle_entries[col];
-}
-
-
 memory_pool_t *return_pool(pool_header_t *header)
 {
 	// cursed $!# pointer arithmetic and casting so bad I prolly broke the ABI

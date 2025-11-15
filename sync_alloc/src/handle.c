@@ -9,13 +9,21 @@
 #include "types.h"
 #include <stdbit.h>
 
-// clang-format off
-//typedef struct Handle_Context {
-//	handle_table_t **table_arr;
-//	i32 max_table_array_index;
-//	i32 current_index;
-//} __attribute__((aligned (16))) handle_context_t;
-// clang-format on
+
+inline syn_handle_t *return_handle(const u32 encoded_matrix_index)
+{
+	const u32 row = encoded_matrix_index / MAX_TABLE_HNDL_COLS;
+	const u32 col = encoded_matrix_index % MAX_TABLE_HNDL_COLS;
+
+	handle_table_t *table = arena_thread->first_hdl_tbl;
+
+	for (u32 i = 0; i < row; i++) {
+		table = table->next_table;
+	}
+
+	return &table->handle_entries[col];
+}
+
 
 handle_table_t *new_handle_table()
 {
@@ -41,24 +49,6 @@ handle_table_t *new_handle_table()
 	new_tbl->next_table = nullptr;
 
 	return new_tbl;
-}
-
-
-[[maybe_unused]]
-static handle_table_t *index_table(const i32 row)
-{
-	handle_table_t *tbl = arena_thread->first_hdl_tbl;
-
-	if (row == -1) {
-		while (tbl->next_table) {
-			tbl = tbl->next_table;
-		}
-		return tbl;
-	}
-	for (int i = 1; i < row; i++) {
-		tbl = tbl->next_table;
-	}
-	return tbl;
 }
 
 

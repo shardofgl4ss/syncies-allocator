@@ -41,8 +41,6 @@ static inline syn_handle_t invalid_block()
 
 extern int bad_alloc_check(const syn_handle_t *restrict hdl, int do_checksum);
 
-extern syn_handle_t *return_handle(u32 encoded_matrix_index);
-
 extern memory_pool_t *return_pool(pool_header_t *header);
 
 extern int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node);
