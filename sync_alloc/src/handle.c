@@ -94,20 +94,10 @@ reloop:
 
 syn_handle_t create_handle_and_entry(pool_header_t *head)
 {
-	//handle_context_t ctx = {};
-
 	if (!arena_thread->table_count && !new_handle_table()) {
 		return invalid_block();
 	}
 
-	//handle_table_t *table_arr[arena_thread->table_count + 1];
-	//ctx.max_table_array_index = return_table_array(table_arr);
-
-	//if (!ctx.max_table_array_index) {
-	//	return invalid_block();
-	//}
-
-	//ctx.table_arr = table_arr;
 	handle_table_t *table = find_non_empty_table();
 
 	if (table == nullptr) {
@@ -127,7 +117,6 @@ syn_handle_t create_handle_and_entry(pool_header_t *head)
 		new_hdl.addr = (void *)BLOCK_ALIGN_PTR(head, ALIGNMENT),
 		new_hdl.header = head,
 		new_hdl.generation = 1,
-		//new_hdl.handle_matrix_index = (arena_thread->table_count * MAX_TABLE_HNDL_COLS) + free_handle_column,
 	};
 
 	#ifndef SYN_USE_RAW
