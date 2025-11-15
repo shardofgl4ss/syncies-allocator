@@ -153,41 +153,41 @@ static i32 free_list_header(const header_context_t *restrict ctx)
 		return 1;
 	}
 
-	pool_free_node_t *header_candidate;
-	pool_free_node_t *next = nullptr;
-	pool_free_node_t *prev = nullptr;
+	//pool_free_node_t *header_candidate;
+	//pool_free_node_t *next = nullptr;
+	//pool_free_node_t *prev = nullptr;
 
-	const u32 chunk_size = ADD_ALIGNMENT_PADDING(ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING);
-	for (int i = 0; i < free_arr_len; i++) {
-		header_candidate = free_arr[i];
-		// TODO extract free node detachment into its own function for modularity
-		if (header_candidate->chunk_size < chunk_size) {
-			continue;
-		}
-		if (header_candidate->chunk_size > chunk_size) {
-			continue; // TODO add block splitting
-		}
-		if (i != 0) {
-			prev = free_arr[i - 1];
-		}
-		if (i < free_arr_len - 1) {
-			next = free_arr[i + 1];
-		}
-		if (prev && next) {
-			prev->next_free = next;
-			goto done;
-		}
-		if (prev && next == nullptr) {
-			prev->next_free = nullptr;
-			goto done;
-		}
-		if (next && prev == nullptr) {
-			ctx->pool->first_free = next;
-			goto done;
-		}
-		ctx->pool->first_free = nullptr;
-		goto done;
-	}
+	//const u32 chunk_size = ADD_ALIGNMENT_PADDING(ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING);
+	//for (int i = 0; i < free_arr_len; i++) {
+	//	header_candidate = free_arr[i];
+	//	// TODO extract free node detachment into its own function for modularity
+	//	if (header_candidate->chunk_size < chunk_size) {
+	//		continue;
+	//	}
+	//	if (header_candidate->chunk_size > chunk_size) {
+	//		continue; // TODO add block splitting
+	//	}
+	//	if (i != 0) {
+	//		prev = free_arr[i - 1];
+	//	}
+	//	if (i < free_arr_len - 1) {
+	//		next = free_arr[i + 1];
+	//	}
+	//	if (prev && next) {
+	//		prev->next_node = next;
+	//		goto done;
+	//	}
+	//	if (prev && next == nullptr) {
+	//		prev->next_node = nullptr;
+	//		goto done;
+	//	}
+	//	if (next && prev == nullptr) {
+	//		ctx->pool->first_free = next;
+	//		goto done;
+	//	}
+	//	ctx->pool->first_free = nullptr;
+	//	goto done;
+	//}
 	return 1;
 done:
 	// TODO call unlink/detach free node instead of this.

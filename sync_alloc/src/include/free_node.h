@@ -22,11 +22,13 @@ typedef struct Memory_Pool memory_pool_t;
  *	see Pool_Header for more details.
  */
 typedef struct Pool_Free_Node {
-	struct Pool_Free_Node *next_free;
+	struct Pool_Free_Node *next_node;
 	u32 chunk_size;
 	bit32 bitflags;
 } __attribute__((aligned(16))) pool_free_node_t;
 
+extern int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node);
+pool_free_node_t *free_node_remove(memory_pool_t *pool, u32 size);
 
 /**
  *	Instead of walking the free list, this fills a VLA ptr array.
@@ -40,8 +42,5 @@ typedef struct Pool_Free_Node {
  *	and not mutate the ptrs provided.
  */
 extern int return_free_array(pool_free_node_t **arr, const memory_pool_t *pool);
-
-extern int free_node_add(memory_pool_t *pool, pool_free_node_t *free_node);
-//int free_node_remove(memory_pool_t *pool, pool_free_node_t *free_node);
 
 #endif //ARENA_ALLOCATOR_FREE_NODE_H
