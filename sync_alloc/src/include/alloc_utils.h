@@ -65,7 +65,7 @@ extern int return_pool_array(memory_pool_t **arr);
 [[maybe_unused]]
 inline static bool corrupt_header_check(pool_header_t *restrict head)
 {
-	return (*(u32 *)((char *)head + (head->chunk_size - (DEADZONE_PADDING * 2))) != HEAD_DEADZONE);
+	return *(u32 *)((char *)head + (head->chunk_size - (DEADZONE_PADDING * 2))) != HEAD_DEADZONE;
 }
 
 

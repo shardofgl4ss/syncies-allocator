@@ -25,13 +25,21 @@ inline int bad_alloc_check(const void *, const int do_checksum)
 
 inline int bad_alloc_check(const syn_handle_t *restrict hdl, const int do_checksum)
 {
+	if (hdl == nullptr || hdl->header == nullptr) {
+		return -1;
+	}
 	if (arena_thread == nullptr) {
 		syn_panic("core arena context was lost!\n");
 	}
 	#ifndef SYN_ALLOC_DISABLE_SAFETY
+	if (hdl->header->bitflags & F_SENTINEL) {
+		goto skip_header;
+	}
 	if (corrupt_header_check(hdl->header)) {
 		syn_panic("allocator structure <Pool_Header> corruption detected!\n");
 	}
+	#endif
+skip_header:
 	if (do_checksum && !handle_generation_checksum(hdl)) {
 		sync_alloc_log.to_console(log_stderr, "stale handle detected!\n");
 		return 1;
@@ -39,7 +47,6 @@ inline int bad_alloc_check(const syn_handle_t *restrict hdl, const int do_checks
 	if (hdl->header->bitflags & F_FROZEN) {
 		return 2;
 	}
-	#endif
 	return 0;
 }
 
@@ -131,7 +138,9 @@ void update_sentinel_and_free_flags(pool_header_t *head)
 		// TODO extract a lot of these branches into sub functions
 		// TODO implement free list updating
 	}
-	if (head->bitflags & F_SENTINEL) {
+	if (head->bitflags & F_SENTINEL ||
+	    (head->bitflags & F_FREE && ((pool_free_node_t *)head)->next_node != nullptr) ||
+	    head->chunk_size > chunk_overflow) {
 		return;
 	}
 

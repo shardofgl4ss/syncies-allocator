@@ -55,6 +55,12 @@ static pool_header_t *mempool_create_header(const header_context_t *restrict ctx
 
 skip_space_check:
 	pool_header_t *head = (pool_header_t *)((u8 *)ctx->pool->mem + offset);
+	{
+		const pool_header_t tmp = {};
+		const bit32 tmp_bitmap = head->bitflags;
+		*head = tmp;
+		head->bitflags = tmp_bitmap;
+	}
 
 	const uintptr_t relative_alignment_offset = ALIGN_PTR(head, ALIGNMENT) - (uintptr_t)head;
 	const u32 chunk_size = ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING + relative_alignment_offset;
@@ -75,8 +81,8 @@ skip_space_check:
 	                  : F_ALLOCATED;
 
 	u32 *deadzone = (u32 *)((u8 *)head + (pad_chunk_size - (DEADZONE_PADDING * 2)));
-	u32 *prev_size_zone = deadzone + 3;
 	uintptr_t *pool_ptr_zone = (uintptr_t *)(deadzone + 1);
+	u32 *prev_size_zone = deadzone + 3;
 
 	/* DEADZONE (4)--POOL_PTR (8)--PREV_SIZE (4) */
 
@@ -147,11 +153,16 @@ static i32 free_list_header(const header_context_t *restrict ctx)
 	if (ctx->pool->first_free == nullptr || ctx->pool->free_count == 0) {
 		return 1;
 	}
-	pool_free_node_t *free_arr[ctx->pool->free_count];
-	const int free_arr_len = return_free_array(free_arr, ctx->pool);
-	if (!free_arr_len) {
+
+	pool_free_node_t *new_node = free_node_remove(ctx->pool, ctx->num_bytes);
+	if (!new_node) {
 		return 1;
 	}
+	// pool_free_node_t *free_arr[ctx->pool->free_count];
+	// const int free_arr_len = return_free_array(free_arr, ctx->pool);
+	// if (!free_arr_len) {
+	// 	return 1;
+	// }
 
 	//pool_free_node_t *header_candidate;
 	//pool_free_node_t *next = nullptr;
@@ -160,7 +171,6 @@ static i32 free_list_header(const header_context_t *restrict ctx)
 	//const u32 chunk_size = ADD_ALIGNMENT_PADDING(ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING);
 	//for (int i = 0; i < free_arr_len; i++) {
 	//	header_candidate = free_arr[i];
-	//	// TODO extract free node detachment into its own function for modularity
 	//	if (header_candidate->chunk_size < chunk_size) {
 	//		continue;
 	//	}
@@ -188,11 +198,7 @@ static i32 free_list_header(const header_context_t *restrict ctx)
 	//	ctx->pool->first_free = nullptr;
 	//	goto done;
 	//}
-	return 1;
-done:
-	// TODO call unlink/detach free node instead of this.
-	*ctx->null_head = mempool_create_header(ctx, (intptr)header_candidate - (intptr)ctx->pool->mem);
-	ctx->pool->free_count--;
+	*ctx->null_head = mempool_create_header(ctx, (intptr)new_node - (intptr)ctx->pool->mem);
 	return 0;
 }
 

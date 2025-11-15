@@ -14,7 +14,7 @@ int main() {
 	//const char *textdata = "meowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeo";
 	constexpr u_int64_t number_of_allocations = 64;
 	for (int i = 1; i < number_of_allocations; i++) {
-		const size_t allocation_size = (rand() % (upper_limit + lower_limit + 1)) + lower_limit;
+		const size_t allocation_size = rand() % ((upper_limit + lower_limit + 1) + lower_limit);
 		syn_handle_t hdl = syn_calloc(allocation_size);
 
 		char *heap_msg = syn_freeze(&hdl);
@@ -23,17 +23,22 @@ int main() {
 		//assert(!strcmp(textdata, heap_msg));
 		hdl = syn_thaw(heap_msg);
 		if (i & 1) {
-			syn_free(&hdl);
+			if (i == 63 || i == 33) {
+				syn_free(&hdl);
+			} else {
+				syn_free(&hdl);
+			}
 		}
 	}
 	syn_reset();
 
 	for (int i = 1; i < number_of_allocations; i++) {
-		const size_t allocation_size = (rand() % (upper_limit + lower_limit + 1)) + lower_limit;
-		syn_handle_t hdl;
+		const size_t allocation_size = rand() % ((upper_limit + lower_limit + 1) + lower_limit);
+		syn_handle_t hdl = {};
 
+		hdl = syn_alloc(allocation_size);
 		char *heap_msg = syn_freeze(&hdl);
-		memset(heap_msg, 'a', allocation_size);
+		memset(heap_msg, 'b', allocation_size);
 
 		//assert(!strcmp(textdata, heap_msg));
 		hdl = syn_thaw(heap_msg);

@@ -20,42 +20,53 @@ static inline pool_free_node_t *index_free_list_end(pool_free_node_t *first_node
 }
 
 
+static bool node_has_equal_size(const pool_free_node_t *node_current, const u32 allocation_size)
+{
+	if (node_current->chunk_size - MAX_ADDED_CHUNK_SIZE > allocation_size) {
+		return false;
+	}
+	if (node_current->chunk_size - MAX_ADDED_CHUNK_SIZE < allocation_size) {
+		return false;
+	}
+	return true;
+}
+
+
 static pool_free_node_t *index_free_list_size(pool_free_node_t **first_node,
                                               const u32 max_index,
                                               const u32 allocation_size)
 {
+	// holy moly if statements
 	pool_free_node_t *node_current = *first_node;
 	pool_free_node_t *node_next = nullptr;
 	pool_free_node_t *node_prev = nullptr;
-	int idx = 0;
-reloop:
-	for (; idx < max_index - 1; idx++) {
+
+	if (node_has_equal_size(node_current, allocation_size)) {
+		if (node_current->next_node) {
+			node_next = node_current->next_node;
+		}
+		goto found;
+	}
+
+	for (int idx = 0; idx < max_index - 1; idx++) {
 		if (node_current->next_node) {
 			node_next = node_current->next_node;
 		}
 
-		if ((node_current->chunk_size - MAX_ADDED_CHUNK_SIZE) >= allocation_size) {
+		if (node_has_equal_size(node_current, allocation_size)) {
 			goto found;
 		}
 
 		node_prev = node_current;
 		node_current = node_current->next_node;
 	}
-	return nullptr;
+	if (!node_has_equal_size(node_current, allocation_size)) {
+		return nullptr;
+	}
 found:
+	// TODO block splitting
 	if (node_next == node_current) {
 		node_next = nullptr;
-	}
-
-	if (node_current->chunk_size - MAX_ADDED_CHUNK_SIZE > allocation_size) {
-		// TODO block splitting
-		idx++;
-		goto reloop;
-	}
-
-	if (node_current->chunk_size - MAX_ADDED_CHUNK_SIZE < allocation_size) {
-		idx++;
-		goto reloop;
 	}
 
 	if (node_next && node_prev) {
@@ -91,10 +102,6 @@ done:
 
 pool_free_node_t *free_node_remove(memory_pool_t *pool, const u32 size)
 {
-	if (pool->first_free == nullptr || pool->free_count == 0) {
-		return nullptr;
-	}
-
 	pool_free_node_t *node = index_free_list_size(&pool->first_free, pool->free_count, size);
 	if (node == nullptr) {
 		return nullptr;
