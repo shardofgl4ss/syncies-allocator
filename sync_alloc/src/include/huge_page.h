@@ -1,0 +1,8 @@
+//
+// Created by SyncShard on 11/15/25.
+//
+
+#ifndef ARENA_ALLOCATOR_HUGE_PAGE_H
+#define ARENA_ALLOCATOR_HUGE_PAGE_H
+
+#endif //ARENA_ALLOCATOR_HUGE_PAGE_H

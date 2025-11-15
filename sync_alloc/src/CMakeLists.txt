@@ -8,6 +8,9 @@ target_sources(sync_alloc
 			   debug.c
 			   alloc_init.c
 			   alloc_utils.c
+			   free_node.c
+			   huge_page.c
+			   slab.c
 			   PRIVATE
 			   FILE_SET private_headers
 			   TYPE HEADERS
@@ -19,6 +22,9 @@ target_sources(sync_alloc
 			   include/handle.h
 			   include/alloc_init.h
 			   include/internal_alloc.h
+			   include/free_node.h
+			   include/huge_page.h
+			   include/slab.h
 			   include/alloc_utils.h
 			   include/helper_functions.h
 			   include/debug.h
