@@ -5,10 +5,8 @@
 #ifndef ARENA_ALLOCATOR_ALLOC_UTILS_H
 #define ARENA_ALLOCATOR_ALLOC_UTILS_H
 
-#include "defs.h"
 #include "structs.h"
 #include "sync_alloc.h"
-#include "types.h"
 #include <stdint.h>
 
 extern _Thread_local arena_t *arena_thread;
@@ -36,7 +34,8 @@ static inline syn_handle_t invalid_block()
 
 extern int bad_alloc_check(const syn_handle_t *restrict hdl, int do_checksum);
 
-extern memory_pool_t *return_pool(pool_header_t *header);
+[[gnu::pure]]
+extern memory_pool_t *return_pool(const pool_header_t *restrict header);
 
 #endif
 
@@ -55,32 +54,6 @@ extern pool_header_t *return_header(void *block_ptr);
  */
 [[maybe_unused]]
 extern int return_pool_array(memory_pool_t **arr);
-
-/**
- * Checks for corruption in a given header.
- *
- * @param head The header to check for corruption.
- * @return False if no corruption is found, true otherwise.
- */
-[[maybe_unused]]
-inline static bool corrupt_header_check(pool_header_t *restrict head)
-{
-	return *(u32 *)((char *)head + (head->chunk_size - (DEADZONE_PADDING * 2))) != HEAD_DEADZONE;
-}
-
-
-/**
- * Checks for corruption in a given pool.
- *
- * @param pool The pool to check for corruption.
- * @return False if no corruption is found, true otherwise.
- */
-[[maybe_unused]]
-inline static bool corrupt_pool_check(memory_pool_t *pool)
-{
-	return (*(u64 *)((char *)pool + PD_POOL_SIZE) != POOL_DEADZONE);
-}
-
 
 /**
  * Clears up defragmentation of the memory pool where there is any.

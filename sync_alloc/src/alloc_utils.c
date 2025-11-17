@@ -1,15 +1,20 @@
 //
 // Created by SyncShard on 10/26/25.
 //
+// ReSharper disable CppUnusedIncludeDirective
 
 #include "alloc_utils.h"
 #include "alloc_init.h"
+#include "deadzone.h"
 #include "debug.h"
 #include "defs.h"
 #include "free_node.h"
+#include "globals.h"
 #include "handle.h"
 #include "structs.h"
 #include "types.h"
+#include <signal.h>
+#include <stdint.h>
 
 // Not implemented
 // void
@@ -51,27 +56,25 @@ skip_header:
 }
 
 
-memory_pool_t *return_pool(pool_header_t *header)
+[[gnu::pure]]
+memory_pool_t *return_pool(const pool_header_t *restrict header)
 {
-	// cursed $!# pointer arithmetic and casting so bad I prolly broke the ABI
-	memory_pool_t *tmp;
 	if (header->bitflags & F_FIRST_HEAD) {
-		tmp = *(memory_pool_t **)(((char *)header - ALIGNMENT));
-		return tmp;
+		return *(memory_pool_t **)(((char *)header - ALIGNMENT));
 	}
-	tmp = *(memory_pool_t **)(((char *)header - ALIGNMENT) + (DEADZONE_PADDING / 2));
-	return tmp;
+	return *(memory_pool_t **)(((char *)header - ALIGNMENT) + 4);
 }
 #endif
 
 
 pool_header_t *return_header(void *block_ptr)
 {
+	return (pool_header_t *)block_ptr - 1;
 	int search_attempts = 0;
 	int offset = PD_HEAD_SIZE;
 recheck:
 
-	pool_header_t *header_candidate = (pool_header_t *)((u8 *)block_ptr - offset);
+	pool_header_t *header_candidate = (pool_header_t *)((char *)block_ptr - offset);
 
 	// This should search 3 times for the max header offset value of ALIGNMENT.
 	if (search_attempts > 2) {
@@ -105,15 +108,19 @@ inline int return_pool_array(memory_pool_t **arr)
 
 void update_sentinel_and_free_flags(pool_header_t *head)
 {
+	// found you, you little $#!*
 	const u32 prev_block_size = (head->bitflags & F_FIRST_HEAD)
 	                            ? 0
-	                            : (u32)(*((u8 *)head + head->chunk_size)) - (DEADZONE_PADDING / 2);
+	                            : return_prev_block_size(head);
 
 	constexpr u32 chunk_overflow = (KIBIBYTE * 128) + 1;
 
 	// Branch inversion doesnt work for bitmaps (or maybe I just dont know how),
 	// so it gets messy here. At least bitflags line up between pool_header_t and
 	// pool_free_node_t, so no casting is needed for setting their bitflags.
+	if (head->bitflags == UINT32_MAX) {
+		raise(SIGTRAP);
+	}
 
 	if (prev_block_size > 0 && prev_block_size < chunk_overflow) {
 		pool_header_t *prev_head = (pool_header_t *)((u8 *)head - prev_block_size);
@@ -137,7 +144,7 @@ void update_sentinel_and_free_flags(pool_header_t *head)
 	}
 
 	pool_header_t *next_head = (pool_header_t *)((u8 *)head + head->chunk_size);
-	if (next_head->bitflags == 0 || next_head->bitflags & F_SENTINEL) {
+	if (next_head->bitflags & F_SENTINEL || next_head->bitflags == 0) {
 		return;
 	}
 
@@ -171,6 +178,7 @@ void pool_destructor()
 			sync_alloc_log.to_console(log_stdout, "destroying core: %p\n", arena_thread);
 		}
 		#endif
+		arena_thread->total_arena_bytes -= pool_arr[i]->size;
 		syn_unmap_page(pool_arr[i]->heap_base, pool_arr[i]->size);
 	}
 }

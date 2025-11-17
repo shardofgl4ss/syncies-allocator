@@ -4,8 +4,10 @@
 
 #include "internal_alloc.h"
 #include "alloc_utils.h"
+#include "deadzone.h"
 #include "defs.h"
 #include "free_node.h"
+#include "globals.h"
 #include "structs.h"
 #include "types.h"
 #include <stdint.h>
@@ -38,7 +40,21 @@ enum {
 static constexpr u32 JUMPTABLE_LAST_INDEX = (sizeof(header_jumptable) / sizeof(header_jumptable[0])) - 1;
 // clang-format off
 
-static pool_header_t *mempool_create_header(const header_context_t *restrict ctx, const uintptr_t offset)
+
+static inline void create_head_sentinel(const header_context_t *restrict ctx)
+{
+	const pool_header_t empty = {};
+	pool_header_t *restrict sentinel_head = (pool_header_t *)((char *)ctx->pool->mem + ctx->pool->offset);
+
+	*sentinel_head = empty;
+	sentinel_head->chunk_size = PD_HEAD_SIZE;
+	sentinel_head->allocation_size = 0;
+	sentinel_head->handle_matrix_index = 0;
+	sentinel_head->bitflags |= F_SENTINEL | F_FROZEN;
+}
+
+
+static pool_header_t *create_header(const header_context_t *restrict ctx, const uintptr_t offset)
 {
 	if (ctx->jump_table_index != LINEAR_OFFSET) {
 		goto skip_space_check;
@@ -54,17 +70,12 @@ static pool_header_t *mempool_create_header(const header_context_t *restrict ctx
 	}
 
 skip_space_check:
-	pool_header_t *head = (pool_header_t *)((char *)ctx->pool->mem + offset);
-	{
-		const pool_header_t tmp = {};
-		const bit32 tmp_bitmap = head->bitflags;
-		*head = tmp;
-		head->bitflags = tmp_bitmap;
-	}
+	const pool_header_t empty_head = {};
+	pool_header_t *restrict head = (pool_header_t *)((char *)ctx->pool->mem + offset);
 
-	if (ctx->num_bytes == 64) {
-		int x = 0;
-	}
+	const bit32 prev_bits = (head->bitflags & F_FIRST_HEAD) ? F_FIRST_HEAD : 0;
+	*head = empty_head;
+	head->bitflags = prev_bits;
 
 	const uintptr_t relative_alignment_offset = ALIGN_PTR(head, ALIGNMENT) - (uintptr_t)head;
 	const u32 chunk_size = ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING + relative_alignment_offset;
@@ -77,32 +88,11 @@ skip_space_check:
 	/* This is to clear the bitflags in case the header is being	*
 	 * placed on a sentinel so it isn't inherited through casts.	*/
 
-	if (head->bitflags & F_SENTINEL) {
-		head->bitflags &= ~F_SENTINEL;
-	}
-	if (head->bitflags & F_FREE) {
-		head->bitflags &= ~F_FREE;
-	}
-	if (head->bitflags & F_FROZEN) {
-		head->bitflags &= ~F_FROZEN;
-	}
+	head->bitflags |= (ctx->pool->offset == 0) ? (F_ALLOCATED | F_FIRST_HEAD) : F_ALLOCATED;
 
-	head->bitflags |= (ctx->pool->offset == 0)
-	                  ? F_ALLOCATED | F_FIRST_HEAD
-	                  : F_ALLOCATED;
+	create_head_deadzone(head, ctx->pool);
 
-	constexpr u32 quarter_size_zone = DEADZONE_PADDING / 2;
-	const char *const base_zone = (char *)head + (pad_chunk_size - ALIGNMENT);
-
-	u32 *deadzone = (u32 *)(base_zone);
-	uintptr_t *pool_ptr_zone = (uintptr_t *)(base_zone + quarter_size_zone);
-	u32 *prev_size_zone = (u32 *)(base_zone + (quarter_size_zone * 3));
-
-	/* DEADZONE (4)--POOL_PTR (8)--PREV_SIZE (4) */
-
-	*deadzone = HEAD_DEADZONE;
-	*pool_ptr_zone = (uintptr_t)ctx->pool;
-	*prev_size_zone = head->chunk_size;
+	// TODO figure out this bug
 
 	if (offset == ctx->pool->offset) {
 		ctx->pool->offset += pad_chunk_size;
@@ -111,22 +101,11 @@ skip_space_check:
 			head->bitflags |= F_SENTINEL; // head becomes sentinel if there is not enough space
 			goto done;
 		}
-
-		//head->bitflags |= F_SENTINEL;
-		pool_header_t *sentinel_head = (pool_header_t *)((u8 *)ctx->pool->mem + ctx->pool->offset);
-
-		sentinel_head->chunk_size = PD_HEAD_SIZE;
-		sentinel_head->allocation_size = 0;
-		sentinel_head->handle_matrix_index = 0;
-		sentinel_head->bitflags |= F_SENTINEL | F_FROZEN;
+		create_head_sentinel(ctx);
 	}
 done:
 	return head;
 }
-
-
-//static pool_free_header_t *detach_free_node(header_context *restrict ctx, pool_free_header_t **free_array) {
-//}
 
 
 static i32 zero_offset_header(const header_context_t *restrict ctx)
@@ -134,7 +113,7 @@ static i32 zero_offset_header(const header_context_t *restrict ctx)
 	if (ctx->pool == nullptr || ctx->pool->offset != 0) {
 		return 1;
 	}
-	*ctx->null_head = mempool_create_header(ctx, 0);
+	*ctx->null_head = create_header(ctx, 0);
 	if (*ctx->null_head == nullptr) {
 		return 1;
 	}
@@ -155,7 +134,7 @@ static i32 linear_offset_header(const header_context_t *restrict ctx)
 	if (pool_out_of_space) {
 		return 1;
 	}
-	*ctx->null_head = mempool_create_header(ctx, ctx->pool->offset);
+	*ctx->null_head = create_header(ctx, ctx->pool->offset);
 	if (*ctx->null_head == nullptr) {
 		return 1;
 	}
@@ -213,7 +192,7 @@ static i32 free_list_header(const header_context_t *restrict ctx)
 	//	ctx->pool->first_free = nullptr;
 	//	goto done;
 	//}
-	*ctx->null_head = mempool_create_header(ctx, (intptr)new_node - (intptr)ctx->pool->mem);
+	*ctx->null_head = create_header(ctx, (intptr)new_node - (intptr)ctx->pool->mem);
 	return 0;
 }
 

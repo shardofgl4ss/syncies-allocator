@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "defs.h"
 #include "free_node.h"
+#include "globals.h"
 #include "internal_alloc.h"
 #include "structs.h"
 #include "syn_memops.h"
@@ -18,7 +19,9 @@
 #include "handle.h"
 #endif
 
+#include <signal.h>
 #include <stdint.h>
+
 
 void syn_destroy()
 {
@@ -76,7 +79,6 @@ void syn_reset()
 
 void *syn_alloc(const usize size)
 {
-
 }
 
 #else
@@ -160,7 +162,7 @@ void syn_free(syn_handle_t *restrict user_handle)
 
 	handle_table_t *table = arena_thread->first_hdl_tbl;
 
-	for (u32 i = 1; i < row; i++) {
+	for (u32 i = 0; i < row; i++) {
 		table = table->next_table;
 	}
 
@@ -237,6 +239,7 @@ syn_handle_t syn_thaw(void *restrict block_ptr)
 	pool_header_t *head = return_header(block_ptr);
 	if (!head) {
 		sync_alloc_log.to_console(log_stderr, "invalid block_ptr!\n");
+		raise(SIGTRAP);
 		return invalid_block();
 	}
 	syn_handle_t *table_hdl = return_handle(head->handle_matrix_index);

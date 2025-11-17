@@ -94,17 +94,5 @@ static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) &&
  * previous chunk size. Due to this, each allocation carries an extra	*
  * ~32 bytes. I will implement slabs to remedy this later,		*
  * since these pools are meant for medium sized allocations.		*/
-#define DEADZONE_PADDING sizeof(u64)
-
-#define KIBIBYTE 1024
-#define MEBIBYTE (1024 * KIBIBYTE)
-#define GIBIBYTE (1024 * MEBIBYTE)
-#define MINIMUM_BLOCK_ALLOC 64			// 64 B
-#define MAX_ALLOC_HUGE_SIZE (GIBIBYTE * 4)	// 4 GiB
-#define MAX_ALLOC_POOL_SIZE (KIBIBYTE * 128)	// 128 KiB
-#define MAX_FIRST_POOL_SIZE (KIBIBYTE * 128)	// 128 KiB
-#define MAX_POOL_SIZE (GIBIBYTE * 2)		// 2 GiB
-#define MAX_TABLE_HNDL_COLS 64			// 64 B
-#define MAX_ALLOC_SLAB_SIZE 256			// 256 B
 
 #endif //ARENA_ALLOCATOR_DEFS_H

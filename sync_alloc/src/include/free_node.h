@@ -28,7 +28,7 @@ typedef struct Pool_Free_Node {
 } __attribute__((aligned(16))) pool_free_node_t;
 
 extern int free_node_add(pool_free_node_t *free_node);
-pool_free_node_t *free_node_remove(memory_pool_t *pool, u32 size);
+extern pool_free_node_t *free_node_remove(memory_pool_t *pool, u32 size);
 
 /**
  *	Instead of walking the free list, this fills a VLA ptr array.

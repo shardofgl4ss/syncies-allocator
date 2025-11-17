@@ -1,4 +1,3 @@
-
 #include "sync_alloc.h"
 #include <assert.h>
 #include <string.h>
@@ -6,48 +5,48 @@
 #include <time.h>
 #include <sys/types.h>
 
-static constexpr int upper_limit = 1024;
+static constexpr int upper_limit = 512;
 static constexpr int lower_limit = 32;
 
-int main() {
+
+int main()
+{
+	constexpr u_int64_t runs = 16;
 	srand(time(nullptr));
 	//const char *textdata = "meowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeowmeo";
-	constexpr u_int64_t number_of_allocations = 64;
-	for (int i = 1; i < number_of_allocations; i++) {
-		const size_t allocation_size = rand() % ((upper_limit + lower_limit + 1) + lower_limit);
-		syn_handle_t hdl = syn_calloc(allocation_size);
+	for (int j = 0; j < runs; j++) {
+		constexpr u_int64_t number_of_allocations = 256;
+		for (int i = 1; i < number_of_allocations / 2; i++) {
+			const size_t allocation_size = rand() % ((upper_limit + lower_limit + 1) + lower_limit);
+			syn_handle_t hdl = syn_calloc(allocation_size);
 
-		char *heap_msg = syn_freeze(&hdl);
-		memset(heap_msg, 'a', allocation_size);
+			char *heap_msg = syn_freeze(&hdl);
+			//memset(heap_msg, 'a', allocation_size - 1);
 
-		//assert(!strcmp(textdata, heap_msg));
-		hdl = syn_thaw(heap_msg);
-		if (i & 1) {
-			if (i == 63 || i == 33) {
-				syn_free(&hdl);
-			} else {
+			//assert(!strcmp(textdata, heap_msg));
+			hdl = syn_thaw(heap_msg);
+			if (i & 1) {
 				syn_free(&hdl);
 			}
 		}
-	}
-	syn_destroy();
+		syn_reset();
 
-	for (int i = 1; i < number_of_allocations; i++) {
-		const size_t allocation_size = rand() % ((upper_limit + lower_limit + 1) + lower_limit);
-		syn_handle_t hdl = {};
+		for (int i = 1; i < number_of_allocations / 2; i++) {
+			const size_t allocation_size = rand() % ((upper_limit + lower_limit + 1) + lower_limit);
+			syn_handle_t hdl = syn_calloc(allocation_size);
+			char *heap_msg = syn_freeze(&hdl);
+			//memset(heap_msg, 'b', allocation_size - 1);
 
-		hdl = syn_alloc(allocation_size);
-		char *heap_msg = syn_freeze(&hdl);
-		memset(heap_msg, 'b', allocation_size);
-
-		//assert(!strcmp(textdata, heap_msg));
-		hdl = syn_thaw(heap_msg);
-		if (i % 2) {
-			syn_free(&hdl);
+			//assert(!strcmp(textdata, heap_msg));
+			hdl = syn_thaw(heap_msg);
+			if (i % 2) {
+				syn_free(&hdl);
+			}
 		}
+		syn_destroy();
 	}
-	syn_destroy();
 }
+
 
 //void test_memcpy()
 //{

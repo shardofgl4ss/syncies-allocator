@@ -4,8 +4,10 @@
 
 #include "alloc_init.h"
 #include "alloc_utils.h"
+#include "deadzone.h"
 #include "debug.h"
 #include "defs.h"
+#include "globals.h"
 #include "handle.h"
 #include "structs.h"
 #include "types.h"
@@ -41,24 +43,15 @@ int arena_init()
 
 	arena_thread = raw_pool;
 
-	/* We add the reserved_space directly to the mapping, then make the starting first_pool->mem	*
-	 * after the reserved space, then just set pool_size to the FIRST_POOL_ALLOC.			*
-	 * This spoofs a max memory of POOL_SIZE when its actually POOL_SIZE - reserved. 		*/
-
 	memory_pool_t *first_pool = (memory_pool_t *)((char *)raw_pool + PD_ARENA_SIZE);
 	const uintptr_t relative_cache_align = ALIGN_PTR(
 	                                                 ((uintptr_t)raw_pool + PD_RESERVED_F_SIZE + DEADZONE_PADDING),
 	                                                 64)
 	                                       - (uintptr_t)raw_pool;
 	first_pool->heap_base = raw_pool;
-	first_pool->mem = (void *)((u8 *)raw_pool + relative_cache_align);
+	first_pool->mem = (void *)((char *)raw_pool + relative_cache_align);
 
-	// This might need to be changed for certain architectures, since its 8 byte aligned before a 64 alignment,
-	// making it appear at: 00 00 00 00 ad de ad de, if ARM requires a double-quadword r/w alignment, itll have
-	// to be pushed back by 8 bytes. Itll be fine if it just needs quadword alignment though.
-	u64 *deadzone = (u64 *)((char *)first_pool->mem - DEADZONE_PADDING);
-	*deadzone-- = POOL_DEADZONE;
-	*((memory_pool_t **)deadzone) = first_pool;
+	create_pool_deadzone(first_pool->mem, first_pool);
 
 	first_pool->offset = 0;
 	first_pool->size = MAX_FIRST_POOL_SIZE;
@@ -97,10 +90,9 @@ memory_pool_t *pool_init(const u32 size)
 	memory_pool_t *new_pool = raw_pool;
 
 	new_pool->heap_base = raw_pool;
-	new_pool->mem = (void *)((u8 *)raw_pool + relative_cache_align);
+	new_pool->mem = (void *)((char *)raw_pool + relative_cache_align);
 
-	u64 *deadzone = (u64 *)((char *)new_pool->mem - DEADZONE_PADDING);
-	*deadzone = POOL_DEADZONE;
+	create_pool_deadzone(new_pool->mem, new_pool);
 
 	new_pool->size = padded_size;
 	new_pool->free_count = 0;

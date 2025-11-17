@@ -5,7 +5,6 @@
 #ifndef ARENA_ALLOCATOR_STRUCTS_H
 #define ARENA_ALLOCATOR_STRUCTS_H
 
-#include "defs.h"
 #include "free_node.h"
 #include "types.h"
 #include <stdio.h>
@@ -183,18 +182,5 @@ typedef struct Debug_VTable {
 
 
 // clang-format on
-
-/*
- * It is very important to have everything aligned in memory, so we should go out of our way to make it that way.
- * PD here stands for PADDED, F for FIRST as the first arena's pool is a special case. PH also stands for Pool Header.
- */
-
-static constexpr u64 POOL_DEADZONE = 0xDEADDEADDEADDEADULL;
-static constexpr u32 HEAD_DEADZONE = 0xDEADDEADU;
-static constexpr u16 PD_ARENA_SIZE = (sizeof(arena_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_POOL_SIZE = (sizeof(memory_pool_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_HEAD_SIZE = (sizeof(pool_header_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_FREE_PH_SIZE = (sizeof(pool_free_node_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u16 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
 
 #endif //ARENA_ALLOCATOR_STRUCTS_H

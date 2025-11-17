@@ -25,8 +25,8 @@ extern bool corrupt_header_check(pool_header_t *restrict head);
 extern bool corrupt_pool_check(memory_pool_t *pool);
 
 extern u32 return_prev_block_size(pool_header_t *head);
-extern int create_head_deadzone(pool_header_t *head, memory_pool_t *pool);
-extern int create_pool_deadzone(void *heap_start);
+extern int create_head_deadzone(const pool_header_t *head, memory_pool_t *pool);
+extern int create_pool_deadzone(const void *heap_start, memory_pool_t *pool);
 
 
 #endif //ARENA_ALLOCATOR_DEADZONE_H

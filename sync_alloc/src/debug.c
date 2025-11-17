@@ -4,6 +4,7 @@
 // ReSharper disable CppParameterMayBeConst
 
 #include "debug.h"
+#include "globals.h"
 #include "handle.h"
 #include "structs.h"
 #include "types.h"

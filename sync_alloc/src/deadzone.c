@@ -33,7 +33,7 @@ inline u32 return_prev_block_size(pool_header_t *head)
 }
 
 
-inline int create_head_deadzone(pool_header_t *head, memory_pool_t *pool)
+inline int create_head_deadzone(const pool_header_t *head, memory_pool_t *pool)
 {
 	if (!head || !pool) {
 		return 1;
@@ -53,7 +53,7 @@ inline int create_head_deadzone(pool_header_t *head, memory_pool_t *pool)
 }
 
 
-inline int create_pool_deadzone(void *heap_start)
+inline int create_pool_deadzone(const void *heap_start, memory_pool_t *pool)
 {
 	if (!heap_start) {
 		return 1;
@@ -66,7 +66,7 @@ inline int create_pool_deadzone(void *heap_start)
 	u64 *deadzone = (u64 *)((char *)heap_start - DEADZONE_PADDING);
 	*deadzone = POOL_DEADZONE;
 	memory_pool_t **pool_ptr_deadzone = (memory_pool_t **)(deadzone - 1);
-	*pool_ptr_deadzone = heap_start;
+	*pool_ptr_deadzone = pool;
 
 	return 0;
 }
