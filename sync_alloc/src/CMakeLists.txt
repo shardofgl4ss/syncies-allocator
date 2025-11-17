@@ -6,6 +6,7 @@ target_sources(sync_alloc
 			   internal_alloc.c
 			   handle.c
 			   debug.c
+			   deadzone.c
 			   alloc_init.c
 			   alloc_utils.c
 			   free_node.c
@@ -19,7 +20,9 @@ target_sources(sync_alloc
 			   include/types.h
 			   include/defs.h
 			   include/structs.h
+			   include/globals.h
 			   include/handle.h
+			   include/deadzone.h
 			   include/alloc_init.h
 			   include/internal_alloc.h
 			   include/free_node.h
