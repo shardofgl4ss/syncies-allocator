@@ -87,7 +87,7 @@ static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) &&
 #define IS_ALIGNED(ptr, align) \
 	(((char *)(ptr) & ((align) - 1)) == 0)
 
-#define ALLOC_DEBUG 1
+//#define ALLOC_DEBUG 1
 
 /* This isnt actually padding. Should do something about that. But meh.	*
  * Headers divide this by 2 to fit both a pointer to the pool, and the	*
