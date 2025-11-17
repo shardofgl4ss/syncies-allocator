@@ -70,11 +70,11 @@
 #endif
 
 #define PADDING 8
-#define MIN_ALIGN 8
+#define MIN_ALIGN 16
 #define MAX_ALIGN 64
 
 static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) && (ALIGNMENT <= MAX_ALIGN)) != 0,
-              "ALIGNMENT must be either 8, 16, 32 or 64!\n");
+              "ALIGNMENT must be either 16, 32 or 64!\n");
 
 #define ADD_PADDING(x) \
 	(((x) + (PADDING - 1)) & (typeof(x))~(PADDING - 1))

@@ -35,7 +35,7 @@ void *syn_map_page(const usize bytes)
 
 int arena_init()
 {
-	void *raw_pool = syn_map_page((MAX_FIRST_POOL_SIZE + (ALIGNMENT - 1)) & (usize)~(ALIGNMENT - 1));
+	void *raw_pool = syn_map_page(MAX_FIRST_POOL_SIZE);
 
 	if (raw_pool == MAP_FAILED) {
 		goto alloc_failure;
@@ -44,17 +44,18 @@ int arena_init()
 	arena_thread = raw_pool;
 
 	memory_pool_t *first_pool = (memory_pool_t *)((char *)raw_pool + PD_ARENA_SIZE);
-	const uintptr_t relative_cache_align = ALIGN_PTR(
-	                                                 ((uintptr_t)raw_pool + PD_RESERVED_F_SIZE + DEADZONE_PADDING),
-	                                                 64)
-	                                       - (uintptr_t)raw_pool;
+	const uintptr_t relative_cache_align = ALIGN_PTR(((uintptr_t)raw_pool
+		                                                 + PD_RESERVED_F_SIZE
+		                                                 + (DEADZONE_PADDING * 2)),
+	                                                 64) - (uintptr_t)raw_pool;
 	first_pool->heap_base = raw_pool;
 	first_pool->mem = (void *)((char *)raw_pool + relative_cache_align);
 
-	create_pool_deadzone(first_pool->mem, first_pool);
+	create_pool_deadzone(first_pool);
+	const uintptr_t reserved_bytes = (uintptr_t)first_pool->mem - (uintptr_t)raw_pool;
 
 	first_pool->offset = 0;
-	first_pool->size = MAX_FIRST_POOL_SIZE;
+	first_pool->size = MAX_FIRST_POOL_SIZE - reserved_bytes;
 	first_pool->next_pool = nullptr;
 
 	arena_thread->total_arena_bytes = (usize)MAX_FIRST_POOL_SIZE;
@@ -84,7 +85,7 @@ memory_pool_t *pool_init(const u32 size)
 		return nullptr;
 	}
 	const uintptr_t relative_cache_align = ALIGN_PTR(
-	                                                 ((uintptr_t)raw_pool + PD_POOL_SIZE + DEADZONE_PADDING),
+	                                                 ((uintptr_t)raw_pool + PD_POOL_SIZE + (DEADZONE_PADDING * 2)),
 	                                                 64)
 	                                       - (uintptr_t)raw_pool;
 	memory_pool_t *new_pool = raw_pool;
@@ -92,9 +93,10 @@ memory_pool_t *pool_init(const u32 size)
 	new_pool->heap_base = raw_pool;
 	new_pool->mem = (void *)((char *)raw_pool + relative_cache_align);
 
-	create_pool_deadzone(new_pool->mem, new_pool);
+	create_pool_deadzone(new_pool);
+	const uintptr_t reserved_bytes = (uintptr_t)new_pool->mem - (uintptr_t)raw_pool;
 
-	new_pool->size = padded_size;
+	new_pool->size = padded_size - reserved_bytes;
 	new_pool->free_count = 0;
 	new_pool->offset = 0;
 	new_pool->first_free = nullptr;
@@ -108,7 +110,7 @@ memory_pool_t *pool_init(const u32 size)
 	memory_pool_t *prev_pool = pool[pool_arr_len - 1];
 	prev_pool->next_pool = new_pool;
 
-	arena_thread->total_arena_bytes += new_pool->size;
+	arena_thread->total_arena_bytes += (new_pool->size + reserved_bytes);
 	arena_thread->pool_count++;
 
 	return new_pool;

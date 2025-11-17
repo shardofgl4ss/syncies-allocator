@@ -56,13 +56,13 @@ static inline void create_head_sentinel(const header_context_t *restrict ctx)
 
 static pool_header_t *create_header(const header_context_t *restrict ctx, const uintptr_t offset)
 {
-	if (ctx->jump_table_index != LINEAR_OFFSET) {
+	if (ctx->jump_table_index == FREE_OFFSET) {
 		goto skip_space_check;
 	}
 	const bool pool_has_no_space_left = (ctx->pool->size - offset)
 	                                  < (ADD_ALIGNMENT_PADDING(ctx->num_bytes)
 	                                    + PD_HEAD_SIZE
-	                                    + DEADZONE_PADDING);
+	                                    + (DEADZONE_PADDING * 2));
 
 	// clang-format on
 	if (pool_has_no_space_left) {
@@ -108,7 +108,7 @@ done:
 }
 
 
-static i32 zero_offset_header(const header_context_t *restrict ctx)
+static inline i32 zero_offset_header(const header_context_t *restrict ctx)
 {
 	if (ctx->pool == nullptr || ctx->pool->offset != 0) {
 		return 1;
@@ -121,7 +121,7 @@ static i32 zero_offset_header(const header_context_t *restrict ctx)
 }
 
 
-static i32 linear_offset_header(const header_context_t *restrict ctx)
+static inline i32 linear_offset_header(const header_context_t *restrict ctx)
 {
 	const bool pool_is_invalid = (ctx->pool == nullptr || ctx->pool->offset == 0) != 0;
 	if (pool_is_invalid) {
@@ -142,7 +142,7 @@ static i32 linear_offset_header(const header_context_t *restrict ctx)
 }
 
 
-static i32 free_list_header(const header_context_t *restrict ctx)
+static inline i32 free_list_header(const header_context_t *restrict ctx)
 {
 	if (ctx->pool->first_free == nullptr || ctx->pool->free_count == 0) {
 		return 1;
@@ -152,46 +152,6 @@ static i32 free_list_header(const header_context_t *restrict ctx)
 	if (!new_node) {
 		return 1;
 	}
-	// pool_free_node_t *free_arr[ctx->pool->free_count];
-	// const int free_arr_len = return_free_array(free_arr, ctx->pool);
-	// if (!free_arr_len) {
-	// 	return 1;
-	// }
-
-	//pool_free_node_t *header_candidate;
-	//pool_free_node_t *next = nullptr;
-	//pool_free_node_t *prev = nullptr;
-
-	//const u32 chunk_size = ADD_ALIGNMENT_PADDING(ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING);
-	//for (int i = 0; i < free_arr_len; i++) {
-	//	header_candidate = free_arr[i];
-	//	if (header_candidate->chunk_size < chunk_size) {
-	//		continue;
-	//	}
-	//	if (header_candidate->chunk_size > chunk_size) {
-	//		continue; // TODO add block splitting
-	//	}
-	//	if (i != 0) {
-	//		prev = free_arr[i - 1];
-	//	}
-	//	if (i < free_arr_len - 1) {
-	//		next = free_arr[i + 1];
-	//	}
-	//	if (prev && next) {
-	//		prev->next_node = next;
-	//		goto done;
-	//	}
-	//	if (prev && next == nullptr) {
-	//		prev->next_node = nullptr;
-	//		goto done;
-	//	}
-	//	if (next && prev == nullptr) {
-	//		ctx->pool->first_free = next;
-	//		goto done;
-	//	}
-	//	ctx->pool->first_free = nullptr;
-	//	goto done;
-	//}
 	*ctx->null_head = create_header(ctx, (intptr)new_node - (intptr)ctx->pool->mem);
 	return 0;
 }
@@ -200,9 +160,9 @@ static i32 free_list_header(const header_context_t *restrict ctx)
 static i32 find_new_header(header_context_t *restrict ctx)
 {
 	memory_pool_t *pool_arr[arena_thread->pool_count];
-	const int pool_arr_len = return_pool_array(pool_arr);
+	const int pool_arr_len = return_pool_array(pool_arr) - 1;
 
-	for (int i = 0; i < pool_arr_len; i++) {
+	for (int i = 0; i <= pool_arr_len; i++) {
 		ctx->pool = pool_arr[i];
 		for (int j = 0; j <= JUMPTABLE_LAST_INDEX; j++) {
 			ctx->jump_table_index = j;

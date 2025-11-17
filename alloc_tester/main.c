@@ -14,12 +14,12 @@ static constexpr char TEXTDATA[SIZE] = "meowmeowmeowmeowmeowmeowmeowmeowmeowmeow
 
 int main()
 {
-	syn_handle_t new_hdl = syn_calloc(SIZE);
+	syn_handle_t new_hdl = syn_alloc(128 * 1024 - 16);
 	char *msg = syn_freeze(&new_hdl);
 
 	memcpy(msg, TEXTDATA, SIZE);
 	msg[SIZE - 1] = '\0';
-	assert(!strcmp(msg, textdata));
+	assert(!strcmp(msg, TEXTDATA));
 	printf("%s\n", msg);
 
 	new_hdl = syn_thaw(msg);

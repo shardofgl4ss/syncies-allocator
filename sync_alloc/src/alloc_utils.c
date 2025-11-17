@@ -69,27 +69,11 @@ memory_pool_t *return_pool(const pool_header_t *restrict header)
 
 pool_header_t *return_header(void *block_ptr)
 {
+	#if ALIGNMENT == 16
 	return (pool_header_t *)block_ptr - 1;
-	int search_attempts = 0;
-	int offset = PD_HEAD_SIZE;
-recheck:
-
-	pool_header_t *header_candidate = (pool_header_t *)((char *)block_ptr - offset);
-
-	// This should search 3 times for the max header offset value of ALIGNMENT.
-	if (search_attempts > 2) {
-		return nullptr;
-	}
-
-	const bool is_invalid_header = (header_candidate->chunk_size > 0 &&
-	                                header_candidate->chunk_size < MAX_ALLOC_POOL_SIZE) == 0;
-
-	if (is_invalid_header) {
-		offset *= 2;
-		search_attempts++;
-		goto recheck;
-	}
-	return header_candidate;
+	#else
+	why do you hate me
+	#endif
 }
 
 

@@ -23,6 +23,27 @@
 #include <stdint.h>
 
 
+static inline int pool_constructor(const usize size)
+{
+	memory_pool_t *pool[arena_thread->pool_count + 1];
+	const int pool_arr_len = return_pool_array(pool);
+	u64 new_pool_size = pool[pool_arr_len - 1]->size * 2;
+
+	while (new_pool_size < ADD_ALIGNMENT_PADDING(size)) {
+		if (new_pool_size * 2 >= MAX_POOL_SIZE) {
+			return 1;
+		}
+		new_pool_size *= 2;
+	}
+
+	pool[pool_arr_len] = pool_init(pool[pool_arr_len - 1]->size * 2);
+	if (pool[pool_arr_len] == nullptr) {
+		return 1;
+	}
+	return 0;
+}
+
+
 void syn_destroy()
 {
 	if (arena_thread == nullptr || (arena_thread->pool_count == 0)) {
@@ -97,27 +118,24 @@ syn_handle_t syn_alloc(const usize size)
 	}
 
 arena_initialized:
-	memory_pool_t *pool[arena_thread->pool_count + 1];
-	int pool_arr_len = return_pool_array(pool);
 
 	// TODO implement slabs for fast small-scale allocations
 	const u32 padded_size = (size < MINIMUM_BLOCK_ALLOC)
 	                        ? ADD_ALIGNMENT_PADDING(MINIMUM_BLOCK_ALLOC)
 	                        : ADD_ALIGNMENT_PADDING(size);
 
-	if ((usize)MAX_ALLOC_POOL_SIZE < size) {
-		// TODO implement large page allocation
-		return invalid_block();
-	}
+	//if ((usize)MAX_ALLOC_POOL_SIZE < size) {
+	//	// TODO implement large page allocation
+	//	return invalid_block();
+	//}
 	bool retried = false;
 reloop:
 	pool_header_t *new_head = find_or_create_new_header(padded_size);
-	if (retried) {
+	if (!new_head && retried) {
 		return invalid_block();
 	}
 	if (new_head == nullptr) {
-		pool[pool_arr_len] = pool_init(pool[pool_arr_len]->size * 2);
-		pool_arr_len++;
+		pool_constructor(size);
 		retried = true;
 		goto reloop;
 	}
@@ -189,14 +207,22 @@ int syn_realloc(syn_handle_t *restrict user_handle, const usize size)
 		return 1;
 	}
 
-	if (size > (usize)MAX_ALLOC_POOL_SIZE) {
-		return 1; // handle huge page reallocs later
-	}
+	//if (size > (usize)MAX_ALLOC_POOL_SIZE) {
+	//	return 1; // handle huge page reallocs later
+	//}
 
 	pool_header_t *old_head = user_handle->header;
+	bool retried = false;
+retry:
 	pool_header_t *new_head = find_or_create_new_header(ADD_ALIGNMENT_PADDING(size));
-	if (new_head == nullptr) {
+	if (new_head == nullptr && retried) {
 		return 1;
+	}
+
+	if (new_head == nullptr) {
+		pool_constructor(size);
+		retried = true;
+		goto retry;
 	}
 
 	const u32 new_block_data_size = old_head->chunk_size - PD_HEAD_SIZE;
