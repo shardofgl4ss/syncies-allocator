@@ -85,6 +85,9 @@ void *syn_alloc(const usize size)
 
 syn_handle_t syn_alloc(const usize size)
 {
+	if (size == 0) {
+		return invalid_block();
+	}
 	if (arena_thread != nullptr) {
 		goto arena_initialized;
 	}
@@ -125,6 +128,10 @@ reloop:
 
 inline syn_handle_t syn_calloc(const usize size)
 {
+	if (size == 0) {
+		return invalid_block();
+	}
+
 	const syn_handle_t hdl = syn_alloc(size);
 	const bool is_invalid_hdl = (hdl.generation == UINT32_MAX ||
 	                             hdl.header->handle_matrix_index == UINT32_MAX ||
