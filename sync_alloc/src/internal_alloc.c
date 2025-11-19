@@ -2,12 +2,12 @@
 // Created by SyncShard on 10/9/25.
 //
 
-#include "internal_alloc.h"
 #include "alloc_utils.h"
 #include "deadzone.h"
 #include "defs.h"
 #include "free_node.h"
 #include "globals.h"
+#include "internal_alloc.h"
 #include "structs.h"
 #include "types.h"
 #include <stdint.h>
@@ -32,30 +32,28 @@ header_type_jumptable_t header_jumptable[] = {
 };
 
 enum {
-	ZERO_OFFSET   = 0,
-	FREE_OFFSET   = 1,
+	ZERO_OFFSET = 0,
+	FREE_OFFSET = 1,
 	LINEAR_OFFSET = 2,
 };
 
 static constexpr u32 JUMPTABLE_LAST_INDEX = (sizeof(header_jumptable) / sizeof(header_jumptable[0])) - 1;
-// clang-format off
 
 
 static inline void create_head_sentinel(const header_context_t *restrict ctx)
 {
-	const pool_header_t empty = {};
 	pool_header_t *restrict sentinel_head = (pool_header_t *)((char *)ctx->pool->mem + ctx->pool->offset);
 
-	*sentinel_head = empty;
 	sentinel_head->chunk_size = PD_HEAD_SIZE;
 	sentinel_head->allocation_size = 0;
 	sentinel_head->handle_matrix_index = 0;
-	sentinel_head->bitflags |= F_SENTINEL | F_FROZEN;
+	sentinel_head->bitflags = (F_SENTINEL | F_FROZEN);
 }
 
 
 static pool_header_t *create_header(const header_context_t *restrict ctx, const uintptr_t offset)
 {
+	// clang-format off
 	if (ctx->jump_table_index == FREE_OFFSET) {
 		goto skip_space_check;
 	}
@@ -70,12 +68,7 @@ static pool_header_t *create_header(const header_context_t *restrict ctx, const 
 	}
 
 skip_space_check:
-	const pool_header_t empty_head = {};
 	pool_header_t *restrict head = (pool_header_t *)((char *)ctx->pool->mem + offset);
-
-	const bit32 prev_bits = (head->bitflags & F_FIRST_HEAD) ? F_FIRST_HEAD : 0;
-	*head = empty_head;
-	head->bitflags = prev_bits;
 
 	const uintptr_t relative_alignment_offset = ALIGN_PTR(head, ALIGNMENT) - (uintptr_t)head;
 	const u32 chunk_size = ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING + relative_alignment_offset;
@@ -88,11 +81,9 @@ skip_space_check:
 	/* This is to clear the bitflags in case the header is being	*
 	 * placed on a sentinel so it isn't inherited through casts.	*/
 
-	head->bitflags |= (ctx->pool->offset == 0) ? (F_ALLOCATED | F_FIRST_HEAD) : F_ALLOCATED;
+	head->bitflags = ((offset == 0) ? (F_ALLOCATED | F_FIRST_HEAD) : F_ALLOCATED);
 
 	create_head_deadzone(head, ctx->pool);
-
-	// TODO figure out this bug
 
 	if (offset == ctx->pool->offset) {
 		ctx->pool->offset += pad_chunk_size;
@@ -127,10 +118,7 @@ static inline i32 linear_offset_header(const header_context_t *restrict ctx)
 	if (pool_is_invalid) {
 		return 1;
 	}
-	const bool pool_out_of_space = (ctx->pool->offset
-	                                + ctx->num_bytes
-	                                + PD_HEAD_SIZE
-	                                + DEADZONE_PADDING > ctx->pool->size) != 0;
+	const bool pool_out_of_space = (ctx->pool->offset + ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING > ctx->pool->size) != 0;
 	if (pool_out_of_space) {
 		return 1;
 	}
