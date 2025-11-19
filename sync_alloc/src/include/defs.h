@@ -59,9 +59,7 @@
  *
  * This might be frozen at an alignemnt of 16/32/64 for raw ptr compatibility.
  */
-#ifndef ALIGNMENT
-	#define	ALIGNMENT 16
-#endif
+#define	ALIGNMENT 16
 
 #define SYN_ALLOC_HANDLE 1
 
@@ -74,25 +72,21 @@
 #define MAX_ALIGN 64
 
 static_assert(((ALIGNMENT & (ALIGNMENT - 1)) == 0 && (ALIGNMENT >= MIN_ALIGN) && (ALIGNMENT <= MAX_ALIGN)) != 0,
-              "ALIGNMENT must be either 16, 32 or 64!\n");
+	      "ALIGNMENT must be either 16, 32 or 64!\n");
 
-#define ADD_PADDING(x) \
+#define ADD_PADDING(x)                      \
 	(((x) + (PADDING - 1)) & (typeof(x))~(PADDING - 1))
-#define ADD_ALIGNMENT_PADDING(x) \
+#define ADD_ALIGNMENT_PADDING(x)                     \
 	(((x) + (ALIGNMENT - 1)) & (typeof(x))~(ALIGNMENT - 1))
-#define BLOCK_ALIGN_PTR(head, align) \
+#define BLOCK_ALIGN_PTR(head, align)                 \
 	((((uintptr_t)(head) + PD_HEAD_SIZE) + ((align) - 1)) & ~((align) - 1))
 #define ALIGN_PTR(ptr, align) \
 	((((uintptr_t)(ptr)) + ((align) - 1)) & ~((align) - 1))
-#define IS_ALIGNED(ptr, align) \
+#define IS_ALIGNED(ptr, align)                 \
 	(((char *)(ptr) & ((align) - 1)) == 0)
 
 //#define ALLOC_DEBUG 1
 
-/* This isnt actually padding. Should do something about that. But meh.	*
- * Headers divide this by 2 to fit both a pointer to the pool, and the	*
- * previous chunk size. Due to this, each allocation carries an extra	*
- * ~32 bytes. I will implement slabs to remedy this later,		*
- * since these pools are meant for medium sized allocations.		*/
 
 #endif //ARENA_ALLOCATOR_DEFS_H
+
