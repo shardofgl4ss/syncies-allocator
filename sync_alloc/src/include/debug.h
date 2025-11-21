@@ -32,7 +32,8 @@ extern void log_stderr(const char *restrict string, va_list arg_list);
 /// @details
 /// debug_level 2 == log all
 [[maybe_unused, gnu::visibility("hidden")]]
-extern void log_to_console(void(*log_and_stream)(const char *format, va_list va_args), const char *str,  ...);
+extern void
+log_to_console(void (*log_and_stream)(const char *format, va_list va_args), const char *str, ...);
 
 /// @brief Prints all important statistics about the arena at any given time.
 [[maybe_unused, gnu::visibility("protected")]]

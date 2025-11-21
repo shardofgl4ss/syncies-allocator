@@ -13,9 +13,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// TODO refactor debug_print_memory_usage() to use new internal struct VLA apis,
-// for more contained tracking of each object
-
 extern _Thread_local arena_t *restrict arena_thread;
 
 
@@ -67,14 +64,14 @@ logger_start_failure:
 
 void debug_print_memory_usage()
 {
+	// TODO redo this entire function
 	const memory_pool_t *pool = arena_thread->first_mempool;
 	const pool_header_t *header = arena_thread->first_mempool->offset != 0
-	                              ? (pool_header_t *)arena_thread->first_mempool->mem
-	                              : nullptr;
+	                                      ? (pool_header_t *)arena_thread->first_mempool->mem
+	                                      : nullptr;
 	const handle_table_t *handle_table = arena_thread->first_hdl_tbl;
 
 	u64 pool_count = 0;
-	u64 head_count = 0;
 	u64 free_headers = 0;
 	u64 total_pool_mem = arena_thread->total_arena_bytes;
 
@@ -84,15 +81,10 @@ void debug_print_memory_usage()
 		pool = pool->next_pool;
 		pool_count++;
 	}
-	while (header != nullptr) {
-		header = header + header->chunk_size;
-		head_count++;
-	}
 
 	sync_alloc_log.to_console(log_stdout, "Total amount of pools: %lu\n", pool_count);
 	sync_alloc_log.to_console(log_stdout, "Pool memory (B): %lu\n", total_pool_mem);
 
-	const usize header_bytes = head_count != 0 ? head_count * PD_HEAD_SIZE : 0;
 	u64 handle_count = 0;
 	u32 table_count = 0;
 
@@ -108,25 +100,35 @@ void debug_print_memory_usage()
 	}
 
 	if (table_count != arena_thread->table_count) {
-		sync_alloc_log.to_console(
-		                          log_stderr,
-		                          "arena_thread's table count: \"%u\" does not match actual table count: \"%u\"!\n",
+		sync_alloc_log.to_console(log_stderr,
+		                          "arena_thread's table count: \"%u\" does not match "
+		                          "actual table count: \"%u\"!\n",
 		                          arena_thread->table_count,
 		                          table_count);
 	}
 
-	const u64 handle_bytes = handle_count * PD_HANDLE_SIZE;
-	const u64 reserved_mem = handle_bytes + header_bytes + (pool_count * PD_POOL_SIZE) + PD_ARENA_SIZE;
+	const u64 handle_bytes = handle_count * STRUCT_SIZE_HANDLE;
+	const u64 reserved_mem = handle_bytes + (pool_count * STRUCT_SIZE_POOL) + STRUCT_SIZE_ARENA;
 
-	sync_alloc_log.to_console(log_stdout, "Struct memory of: headers: %lu\n", header_bytes);
+	//sync_alloc_log.to_console(log_stdout, "Struct memory of: headers: %lu\n", header_bytes);
 	sync_alloc_log.to_console(log_stdout, "Struct memory of: handles: %lu\n", handle_bytes);
-	sync_alloc_log.to_console(log_stdout, "Struct memory of: tables: %lu\n", (u64)table_count * PD_TABLE_SIZE);
-	sync_alloc_log.to_console(log_stdout, "Struct memory of: pools: %lu\n", pool_count * PD_POOL_SIZE);
+	sync_alloc_log.to_console(log_stdout,
+	                          "Struct memory of: tables: %lu\n",
+	                          (u64)table_count * STRUCT_SIZE_HANDLE_TABLE);
+	sync_alloc_log.to_console(log_stdout,
+	                          "Struct memory of: pools: %lu\n",
+	                          pool_count * STRUCT_SIZE_POOL);
 	sync_alloc_log.to_console(log_stdout, "Total reserved memory: %lu\n", reserved_mem);
-	sync_alloc_log.to_console(log_stdout, "Total memory used: %lu\n", total_pool_mem + reserved_mem);
+	sync_alloc_log.to_console(log_stdout,
+	                          "Total memory used: %lu\n",
+	                          total_pool_mem + reserved_mem);
 	sync_alloc_log.to_console(log_stdout, "Total count of free headers: %lu\n", free_headers);
 	sync_alloc_log.to_console(log_stdout, "Total count of handle tables: %u\n", table_count);
 }
 
+// clang-format off
 
-debug_vtable_t sync_alloc_log = { .to_console = &log_to_console, .debug_print_all = &debug_print_memory_usage };
+debug_vtable_t sync_alloc_log = {
+	.to_console = &log_to_console,
+        .debug_print_all = &debug_print_memory_usage
+};

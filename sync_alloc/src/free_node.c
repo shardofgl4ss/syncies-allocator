@@ -2,9 +2,9 @@
 // Created by SyncShard on 11/15/25.
 //
 
-#include "free_node.h"
 #include "alloc_utils.h"
 #include "defs.h"
+#include "free_node.h"
 #include "globals.h"
 #include "structs.h"
 #include "types.h"
@@ -12,7 +12,8 @@
 //static constexpr u32 MAX_ADDED_CHUNK_SIZE = (ALIGNMENT + (DEADZONE_PADDING * 2));
 
 
-static inline pool_free_node_t *index_free_list_end(pool_free_node_t *first_node, const u32 max_index)
+static inline pool_free_node_t *index_free_list_end(pool_free_node_t *first_node,
+                                                    const u32 max_index)
 {
 	pool_free_node_t *node = first_node;
 	for (int i = 0; i < max_index - 1; i++) {
@@ -24,7 +25,8 @@ static inline pool_free_node_t *index_free_list_end(pool_free_node_t *first_node
 
 static bool node_has_equal_size(const pool_free_node_t *node_current, const u32 allocation_size)
 {
-	const u32 pad_chunk_size = ADD_ALIGNMENT_PADDING(allocation_size + PD_HEAD_SIZE + DEADZONE_PADDING);
+	const u32 pad_chunk_size =
+		ADD_ALIGNMENT_PADDING(allocation_size + STRUCT_SIZE_HEADER + DEADZONE_PADDING);
 	if (node_current->chunk_size > pad_chunk_size) {
 		return false;
 	}
@@ -35,9 +37,8 @@ static bool node_has_equal_size(const pool_free_node_t *node_current, const u32 
 }
 
 
-static pool_free_node_t *index_free_list_size(pool_free_node_t **first_node,
-                                              const u32 max_index,
-                                              const u32 allocation_size)
+static pool_free_node_t *
+index_free_list_size(pool_free_node_t **first_node, const u32 max_index, const u32 allocation_size)
 {
 	// holy moly if statements
 	pool_free_node_t *node_current = *first_node;

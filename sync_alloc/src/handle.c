@@ -2,11 +2,12 @@
 // Created by SyncShard on 10/15/25.
 //
 
-#include "handle.h"
 #include "alloc_init.h"
 #include "alloc_utils.h"
+#include "debug.h"
 #include "defs.h"
 #include "globals.h"
+#include "handle.h"
 #include "structs.h"
 #include "types.h"
 #include <stdbit.h>
@@ -16,7 +17,6 @@ inline bool handle_generation_checksum(const syn_handle_t *restrict hdl)
 {
 	return ((return_handle(hdl->header->handle_matrix_index))->generation == hdl->generation);
 }
-
 
 
 inline void update_table_generation(const u32 encoded_matrix_index)
@@ -36,11 +36,9 @@ void table_destructor()
 
 	for (int i = 0; i < table_arr_len; i++) {
 		#ifdef ALLOC_DEBUG
-		sync_alloc_log.to_console(log_stdout,
-		                          "destroying table at: %p\n",
-		                          table_arr[i]);
+		sync_alloc_log.to_console(log_stdout, "destroying table at: %p\n", table_arr[i]);
 		#endif
-		syn_unmap_page(table_arr[i], PD_HDL_MATRIX_SIZE);
+		syn_unmap_page(table_arr[i], STRUCT_SIZE_HANDLE_MATRIX);
 	}
 	arena_thread->table_count = 0;
 	arena_thread->first_hdl_tbl = nullptr;
@@ -82,13 +80,13 @@ inline syn_handle_t *return_handle(const u32 encoded_matrix_index)
 
 handle_table_t *new_handle_table()
 {
-	handle_table_t *new_tbl = syn_map_page(PD_HDL_MATRIX_SIZE);
+	handle_table_t *new_tbl = syn_map_page(STRUCT_SIZE_HANDLE_MATRIX);
 	if (!new_tbl) {
 		return nullptr;
 	}
 
-	const bool no_first_table = (arena_thread->first_hdl_tbl == nullptr ||
-	                             !arena_thread->table_count) != 0;
+	const bool no_first_table =
+		(arena_thread->first_hdl_tbl == nullptr || !arena_thread->table_count) != 0;
 	if (no_first_table) {
 		arena_thread->first_hdl_tbl = new_tbl;
 	} else {
@@ -165,7 +163,8 @@ syn_handle_t create_handle_and_entry(pool_header_t *head)
 	};
 
 	#ifndef SYN_USE_RAW
-	head->handle_matrix_index = ((table->table_id - 1) * MAX_TABLE_HNDL_COLS) + free_handle_column;
+	head->handle_matrix_index =
+		((table->table_id - 1) * MAX_TABLE_HNDL_COLS) + free_handle_column;
 	#endif
 
 

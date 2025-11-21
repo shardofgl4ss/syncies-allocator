@@ -3,8 +3,8 @@
 //
 // ReSharper disable CppUnusedIncludeDirective
 
-#include "alloc_utils.h"
 #include "alloc_init.h"
+#include "alloc_utils.h"
 #include "deadzone.h"
 #include "debug.h"
 #include "defs.h"
@@ -38,13 +38,16 @@ inline int bad_alloc_check(const syn_handle_t *restrict hdl, const int do_checks
 	}
 	#ifndef SYN_ALLOC_DISABLE_SAFETY
 	if (hdl->header->bitflags & F_SENTINEL) {
-		goto skip_header;
+		goto skip_header_check;
 	}
 	if (corrupt_header_check(hdl->header)) {
 		syn_panic("allocator structure <Pool_Header> corruption detected!\n");
 	}
+skip_header_check:
+	if (corrupt_pool_check(return_pool(hdl->header))) {
+		syn_panic("allocator structure <Memory_Pool> corruption detected!\n");
+	}
 	#endif
-skip_header:
 	if (do_checksum && !handle_generation_checksum(hdl)) {
 		sync_alloc_log.to_console(log_stderr, "stale handle detected!\n");
 		return 1;
@@ -56,17 +59,17 @@ skip_header:
 }
 
 
-[[gnu::pure]]
+[[gnu::hot, gnu::pure]]
 memory_pool_t *return_pool(const pool_header_t *restrict header)
 {
-	if (header->bitflags & F_FIRST_HEAD) {
-		return *(memory_pool_t **)(((char *)header - ALIGNMENT));
-	}
-	return *(memory_pool_t **)(((char *)header - ALIGNMENT) + 4);
+	const head_deadzone_t *head_dz =
+		((head_deadzone_t *)((char *)header + (header->chunk_size - DEADZONE_SIZE)));
+	return (memory_pool_t *)head_dz->pool_ptr;
 }
 #endif
 
 
+[[gnu::hot, gnu::pure]]
 pool_header_t *return_header(void *block_ptr)
 {
 	#if ALIGNMENT == 16
@@ -92,10 +95,7 @@ inline int return_pool_array(memory_pool_t **arr)
 
 void update_sentinel_and_free_flags(pool_header_t *head)
 {
-	// found you, you little $#!*
-	const u32 prev_block_size = (head->bitflags & F_FIRST_HEAD)
-	                            ? 0
-	                            : return_prev_block_size(head);
+	const u32 prev_block_size = return_prev_block_size(head);
 
 	constexpr u32 chunk_overflow = (KIBIBYTE * 128) + 1;
 
@@ -106,8 +106,8 @@ void update_sentinel_and_free_flags(pool_header_t *head)
 		raise(SIGTRAP);
 	}
 
-	if (prev_block_size > 0 && prev_block_size < chunk_overflow) {
-		pool_header_t *prev_head = (pool_header_t *)((u8 *)head - prev_block_size);
+	if (prev_block_size != 0 && prev_block_size < chunk_overflow) {
+		pool_header_t *prev_head = (pool_header_t *)((char *)head - prev_block_size);
 		if (prev_head->bitflags & F_SENTINEL) {
 			prev_head->bitflags &= ~F_SENTINEL;
 			head->bitflags |= F_SENTINEL;
@@ -159,7 +159,9 @@ void pool_destructor()
 			                          pool_arr[i]->size,
 			                          pool_arr[i]->heap_base);
 		} else {
-			sync_alloc_log.to_console(log_stdout, "destroying core: %p\n", arena_thread);
+			sync_alloc_log.to_console(log_stdout,
+			                          "destroying core: %p\n",
+			                          arena_thread);
 		}
 		#endif
 		arena_thread->total_arena_bytes -= pool_arr[i]->size;

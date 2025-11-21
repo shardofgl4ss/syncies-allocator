@@ -28,11 +28,12 @@
  *	is undefined behavior.
  */
 typedef struct Syn_Handle {
-	void *addr;			/**< address to the user's block. Equivalent to *header + sizeof(header). */
-	pool_header_t *header;		/**< pointer to the sentinel header of the user's block.		  */
-	u_int32_t generation;			/**< generation of pointer, to detect stale handles and use-after-frees.  */
+	void *addr;   /**< address to the user's block. Equivalent to *header + sizeof(header). */
+	pool_header_t *header;  /**< pointer to the sentinel header of the user's block.		  */
+	u_int32_t
+		generation; /**< generation of pointer, to detect stale handles and use-after-frees.  */
 	//u_int32_t handle_matrix_index;	/**< flattened matrix index.						  */
-} __attribute__((aligned (32))) syn_handle_t;
+} __attribute__((aligned(32))) syn_handle_t;
 #endif
 
 

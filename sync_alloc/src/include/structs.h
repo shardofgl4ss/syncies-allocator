@@ -31,7 +31,7 @@ typedef struct Handle_Table handle_table_t;
  *	@details
  *	To clear multiple flags:	@code x &= ~(FLAG1 | FLAG2); @endcode
  */
-enum Header_Flags : u16 {
+enum Header_Flags : u32 {
 	F_FREE        = (1 << 0),	/**< FREE: Empty block.									*/
 	F_ALLOCATED   = (1 << 1),	/**< ALLOCATED: free to relocate and defrag.						*/
 	F_FROZEN      = (1 << 2),	/**< FROZEN: dictates that the handle has been dereferenced, do NOT touch.		*/
@@ -47,6 +47,18 @@ enum Header_Flags : u16 {
 	F_SLAB_BLOCK  = (1 << 12),	/**< SLAB_BLOCK: Determines if this flag marks a slab or not.				*/
 };
 
+
+// Idk why I didnt do this before. They should've been structs!!!!!!!!!!!!!!!
+typedef struct Pool_Deadzone {
+	const memory_pool_t *pool_ptr;
+	const u64 deadzone;
+} __attribute__((aligned(16), packed)) pool_deadzone_t;
+
+typedef struct Head_Deadzone {
+	const u32 deadzone;
+	const u32 prev_chunk_size;
+	const memory_pool_t *pool_ptr;
+} __attribute__((aligned(16), packed)) head_deadzone_t;
 
 /**
  * 	Memory pool block header, not for huge pools or slabs, but right in the middle.
@@ -117,7 +129,7 @@ typedef struct Pool_Header_Ext {
 
 /**
  * 	Memory pool data structure.
- *
+*
  *	@details
  *	Every pool is linked to the next and the next are linked to the previous,
  *	resulting in a linked-list style of arena. total_mem_size represents
@@ -134,6 +146,7 @@ typedef struct Memory_Pool {
 	u32 free_count;			/**< How many freed headers there are in this pool.	*/
 } __attribute__((aligned(64))) memory_pool_t;
 
+// im too lazy to update this comment
 /**
  * 	Super-struct-ure for the entire arena.
  *

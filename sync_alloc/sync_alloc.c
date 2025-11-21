@@ -19,7 +19,6 @@
 #include "handle.h"
 #endif
 
-#include <signal.h>
 #include <stdint.h>
 
 
@@ -64,7 +63,8 @@ void syn_destroy()
 void syn_reset()
 {
 	if (arena_thread == nullptr) {
-		sync_alloc_log.to_console(log_stderr, "syn_reset() called without an allocated arena!\n");
+		sync_alloc_log.to_console(log_stderr,
+		                          "syn_reset() called without an allocated arena!\n");
 		return;
 	}
 
@@ -121,8 +121,8 @@ arena_initialized:
 
 	// TODO implement slabs for fast small-scale allocations
 	const u32 padded_size = (size < MINIMUM_BLOCK_ALLOC)
-	                        ? ADD_ALIGNMENT_PADDING(MINIMUM_BLOCK_ALLOC)
-	                        : ADD_ALIGNMENT_PADDING(size);
+	                                ? ADD_ALIGNMENT_PADDING(MINIMUM_BLOCK_ALLOC)
+	                                : ADD_ALIGNMENT_PADDING(size);
 
 	//if ((usize)MAX_ALLOC_POOL_SIZE < size) {
 	//	// TODO implement large page allocation
@@ -207,9 +207,8 @@ int syn_realloc(syn_handle_t *restrict user_handle, const usize size)
 		return 1;
 	}
 
-	//if (size > (usize)MAX_ALLOC_POOL_SIZE) {
-	//	return 1; // handle huge page reallocs later
-	//}
+	// TODO huge page allocations
+	// TODO split the core allocation logic into a subfunction
 
 	pool_header_t *old_head = user_handle->header;
 	bool retried = false;
@@ -225,19 +224,22 @@ retry:
 		goto retry;
 	}
 
-	const u32 new_block_data_size = old_head->chunk_size - PD_HEAD_SIZE;
+	const u32 new_block_data_size = old_head->chunk_size - STRUCT_SIZE_HEADER;
 
-	const void *old_block_data = ((char *)old_head + PD_HEAD_SIZE);
-	void *new_block_data = ((char *)new_head + PD_HEAD_SIZE);
+	const void *old_block_data = ((char *)old_head + STRUCT_SIZE_HEADER);
+	void *new_block_data = ((char *)new_head + STRUCT_SIZE_HEADER);
+
+	syn_memcpy(new_block_data, old_block_data, new_block_data_size);
 
 	user_handle->generation++;
-	syn_memcpy(new_block_data, old_block_data, new_block_data_size);
 	user_handle->header = new_head;
 	user_handle->addr = (void *)BLOCK_ALIGN_PTR(new_head, ALIGNMENT);
 	new_head->bitflags = old_head->bitflags;
 
 	if (old_head->bitflags & F_SENSITIVE) {
-		syn_memset((char *)old_head + PD_HEAD_SIZE, 0, old_head->chunk_size - PD_HEAD_SIZE);
+		syn_memset((char *)old_head + STRUCT_SIZE_HEADER,
+		           0,
+		           old_head->chunk_size - STRUCT_SIZE_HEADER);
 		old_head->bitflags &= ~F_SENSITIVE;
 	}
 
@@ -272,7 +274,6 @@ syn_handle_t syn_thaw(void *restrict block_ptr)
 	pool_header_t *head = return_header(block_ptr);
 	if (!head) {
 		sync_alloc_log.to_console(log_stderr, "invalid block_ptr!\n");
-		raise(SIGTRAP);
 		return invalid_block();
 	}
 	syn_handle_t *table_hdl = return_handle(head->handle_matrix_index);

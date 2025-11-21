@@ -15,8 +15,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 _Thread_local arena_t *arena_thread = nullptr;
 
@@ -43,11 +43,11 @@ int arena_init()
 
 	arena_thread = raw_pool;
 
-	memory_pool_t *first_pool = (memory_pool_t *)((char *)raw_pool + PD_ARENA_SIZE);
-	const uintptr_t relative_cache_align = ALIGN_PTR(((uintptr_t)raw_pool
-		                                                 + PD_RESERVED_F_SIZE
-		                                                 + (DEADZONE_PADDING * 2)),
-	                                                 64) - (uintptr_t)raw_pool;
+	memory_pool_t *first_pool = (memory_pool_t *)((char *)raw_pool + STRUCT_SIZE_ARENA);
+	const uintptr_t relative_cache_align =
+		ALIGN_PTR(((uintptr_t)raw_pool + RESERVED_FIRST_POOL_SIZE + DEADZONE_SIZE), 64) -
+		(uintptr_t)raw_pool;
+
 	first_pool->heap_base = raw_pool;
 	first_pool->mem = (void *)((char *)raw_pool + relative_cache_align);
 
@@ -69,8 +69,8 @@ int arena_init()
 alloc_failure:
 	#ifdef ALLOC_DEBUG
 	sync_alloc_log.to_console(
-	                          log_stderr,
-	                          "OOM, when you buy more ram, send some to your local protogen too!\n");
+		log_stderr,
+		"OOM, when you buy more ram, send some to your local protogen too!\n");
 	#endif
 	return 1;
 }
@@ -84,10 +84,10 @@ memory_pool_t *pool_init(const u32 size)
 	if (!raw_pool) {
 		return nullptr;
 	}
-	const uintptr_t relative_cache_align = ALIGN_PTR(
-	                                                 ((uintptr_t)raw_pool + PD_POOL_SIZE + (DEADZONE_PADDING * 2)),
-	                                                 64)
-	                                       - (uintptr_t)raw_pool;
+	const uintptr_t relative_cache_align =
+		ALIGN_PTR(((uintptr_t)raw_pool + STRUCT_SIZE_POOL + (DEADZONE_PADDING * 2)), 64) -
+		(uintptr_t)raw_pool;
+
 	memory_pool_t *new_pool = raw_pool;
 
 	new_pool->heap_base = raw_pool;
@@ -104,9 +104,11 @@ memory_pool_t *pool_init(const u32 size)
 
 	memory_pool_t *pool[arena_thread->pool_count];
 	const int pool_arr_len = return_pool_array(pool);
+
 	if (!pool_arr_len) {
-		return nullptr;
+		return new_pool;
 	}
+
 	memory_pool_t *prev_pool = pool[pool_arr_len - 1];
 	prev_pool->next_pool = new_pool;
 
@@ -128,6 +130,6 @@ _Noreturn void syn_panic(const char *panic_msg)
 	fflush(stderr);
 
 	raise(SIGABRT);
-	// sigabrt unlikely to *not* terminate the application, but just in case.
+	// sigabrt is unlikely to *not* terminate the application, but just in case.
 	_exit(SIGABRT);
 }

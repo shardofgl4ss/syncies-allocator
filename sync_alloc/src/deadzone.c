@@ -3,70 +3,65 @@
 //
 
 #include "deadzone.h"
-#include "defs.h"
 #include "globals.h"
 #include "structs.h"
+#include "syn_memops.h"
 #include "types.h"
-
-static constexpr u32 PREV_SIZE_OFFSET = sizeof(int) * 3;
-static constexpr u32 QUARTER_SIZE = DEADZONE_PADDING / 2;
 
 
 inline bool corrupt_header_check(pool_header_t *restrict head)
 {
-	return *(u32 *)((char *)head + (head->chunk_size - (DEADZONE_PADDING * 2))) != HEAD_DEADZONE;
+	const head_deadzone_t *head_dz =
+		(head_deadzone_t *)((char *)head + (head->chunk_size - DEADZONE_SIZE));
+	return (head_dz->deadzone != HEAD_DEADZONE);
 }
 
 
-inline bool corrupt_pool_check(memory_pool_t *pool)
+inline bool corrupt_pool_check(const memory_pool_t *pool)
 {
-	return (*(u64 *)((char *)pool + PD_POOL_SIZE) != POOL_DEADZONE);
+	const pool_deadzone_t *pool_dz = (pool_deadzone_t *)((char *)pool->mem - DEADZONE_SIZE);
+	return (pool_dz->deadzone != POOL_DEADZONE);
 }
 
 
 inline u32 return_prev_block_size(pool_header_t *head)
 {
-	if (head->bitflags & F_FIRST_HEAD) {
-		return *(u32 *)(head - 1);
-	}
-	return *(u32 *)((char *)(head - 1) + PREV_SIZE_OFFSET);
+	return (head->bitflags & F_FIRST_HEAD) ? 0
+	                                       : ((head_deadzone_t *)(head - 1))->prev_chunk_size;
 }
 
 
-inline int create_head_deadzone(const pool_header_t *head, memory_pool_t *pool)
+inline int create_head_deadzone(const pool_header_t *head, const memory_pool_t *pool)
 {
 	if (!head || !pool) {
 		return 1;
 	}
-	const char *const base_zone = (char *)head + (head->chunk_size - ALIGNMENT);
+	void *head_dz = (head_deadzone_t *)((char *)head + (head->chunk_size - DEADZONE_SIZE));
 
-	u32 *deadzone = (u32 *)(base_zone);
-	memory_pool_t **pool_ptr_zone = (memory_pool_t **)(base_zone + QUARTER_SIZE);
-	u32 *prev_size_zone = (u32 *)(base_zone + (PREV_SIZE_OFFSET));
+	const head_deadzone_t deadzone = {
+		.deadzone = HEAD_DEADZONE,
+		.prev_chunk_size = head->chunk_size,
+		.pool_ptr = pool,
+	};
 
-	/* DEADZONE (4)--POOL_PTR (8)--PREV_SIZE (4) */
-
-	*deadzone = HEAD_DEADZONE;
-	*pool_ptr_zone = pool;
-	*prev_size_zone = head->chunk_size;
+	syn_memcpy(head_dz, &deadzone, DEADZONE_SIZE);
 	return 0;
 }
 
 
-inline int create_pool_deadzone(memory_pool_t *pool)
+inline int create_pool_deadzone(const memory_pool_t *pool)
 {
 	if (!pool) {
 		return 1;
 	}
 
-	// This might need to be changed for certain architectures, since its 8 byte aligned before a 64 alignment,
-	// making it appear at: 00 00 00 00 <ad de ad de>, if ARM requires a double-quadword r/w alignment, itll have
-	// to be pushed back by 8 bytes. Itll be fine if it just needs quadword (or less) alignment though.
+	void *pool_dz = ((char *)pool->mem - DEADZONE_SIZE);
 
-	u64 *deadzone = (u64 *)((char *)pool->mem - DEADZONE_PADDING);
-	*deadzone = POOL_DEADZONE;
-	memory_pool_t **pool_ptr_deadzone = (memory_pool_t **)(deadzone - 1);
-	*pool_ptr_deadzone = pool;
+	const pool_deadzone_t deadzone = {
+		.pool_ptr = pool,
+		.deadzone = POOL_DEADZONE,
+	};
 
+	syn_memcpy(pool_dz, &deadzone, DEADZONE_SIZE);
 	return 0;
 }

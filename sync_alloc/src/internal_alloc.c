@@ -37,14 +37,16 @@ enum {
 	LINEAR_OFFSET = 2,
 };
 
-static constexpr u32 JUMPTABLE_LAST_INDEX = (sizeof(header_jumptable) / sizeof(header_jumptable[0])) - 1;
+static constexpr u32 JUMPTABLE_LAST_INDEX =
+	(sizeof(header_jumptable) / sizeof(header_jumptable[0])) - 1;
 
 
 static inline void create_head_sentinel(const header_context_t *restrict ctx)
 {
-	pool_header_t *restrict sentinel_head = (pool_header_t *)((char *)ctx->pool->mem + ctx->pool->offset);
+	pool_header_t *restrict sentinel_head =
+		(pool_header_t *)((char *)ctx->pool->mem + ctx->pool->offset);
 
-	sentinel_head->chunk_size = PD_HEAD_SIZE;
+	sentinel_head->chunk_size = STRUCT_SIZE_HEADER;
 	sentinel_head->allocation_size = 0;
 	sentinel_head->handle_matrix_index = 0;
 	sentinel_head->bitflags = (F_SENTINEL | F_FROZEN);
@@ -53,16 +55,14 @@ static inline void create_head_sentinel(const header_context_t *restrict ctx)
 
 static pool_header_t *create_header(const header_context_t *restrict ctx, const uintptr_t offset)
 {
-	// clang-format off
 	if (ctx->jump_table_index == FREE_OFFSET) {
 		goto skip_space_check;
 	}
-	const bool pool_has_no_space_left = (ctx->pool->size - offset)
-	                                  < (ADD_ALIGNMENT_PADDING(ctx->num_bytes)
-	                                    + PD_HEAD_SIZE
-	                                    + (DEADZONE_PADDING * 2));
+	const bool pool_has_no_space_left =
+		(ctx->pool->size - offset) < (ADD_ALIGNMENT_PADDING(ctx->num_bytes) +
+	                                      STRUCT_SIZE_HEADER +
+	                                      (DEADZONE_PADDING * 2));
 
-	// clang-format on
 	if (pool_has_no_space_left) {
 		return nullptr;
 	}
@@ -71,7 +71,8 @@ skip_space_check:
 	pool_header_t *restrict head = (pool_header_t *)((char *)ctx->pool->mem + offset);
 
 	const uintptr_t relative_alignment_offset = ALIGN_PTR(head, ALIGNMENT) - (uintptr_t)head;
-	const u32 chunk_size = ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING + relative_alignment_offset;
+	const u32 chunk_size =
+		ctx->num_bytes + STRUCT_SIZE_HEADER + DEADZONE_PADDING + relative_alignment_offset;
 	const u32 pad_chunk_size = ADD_ALIGNMENT_PADDING(chunk_size);
 
 	head->allocation_size = ctx->num_bytes;
@@ -81,15 +82,16 @@ skip_space_check:
 	/* This is to clear the bitflags in case the header is being	*
 	 * placed on a sentinel so it isn't inherited through casts.	*/
 
-	head->bitflags = ((offset == 0) ? (F_ALLOCATED | F_FIRST_HEAD) : F_ALLOCATED);
+	head->bitflags = (offset == 0) ? (F_ALLOCATED | F_FIRST_HEAD) : F_ALLOCATED;
 
 	create_head_deadzone(head, ctx->pool);
 
 	if (offset == ctx->pool->offset) {
 		ctx->pool->offset += pad_chunk_size;
 
-		if (ctx->pool->offset + PD_HEAD_SIZE > ctx->pool->size) {
-			head->bitflags |= F_SENTINEL; // head becomes sentinel if there is not enough space
+		if (ctx->pool->offset + STRUCT_SIZE_HEADER > ctx->pool->size) {
+			head->bitflags |= F_SENTINEL;
+			// head becomes sentinel if there is not enough space
 			goto done;
 		}
 		create_head_sentinel(ctx);
@@ -118,7 +120,10 @@ static inline i32 linear_offset_header(const header_context_t *restrict ctx)
 	if (pool_is_invalid) {
 		return 1;
 	}
-	const bool pool_out_of_space = (ctx->pool->offset + ctx->num_bytes + PD_HEAD_SIZE + DEADZONE_PADDING > ctx->pool->size) != 0;
+	const bool pool_out_of_space =
+		(ctx->pool->offset + ctx->num_bytes + STRUCT_SIZE_HEADER + DEADZONE_SIZE >
+	         ctx->pool->size) != 0;
+
 	if (pool_out_of_space) {
 		return 1;
 	}
@@ -165,7 +170,9 @@ static i32 find_new_header(header_context_t *restrict ctx)
 
 pool_header_t *find_or_create_new_header(const u32 requested_size)
 {
-	if (arena_thread == nullptr || arena_thread->first_mempool == nullptr || requested_size == 0) {
+	if (arena_thread == nullptr ||
+	    arena_thread->first_mempool == nullptr ||
+	    requested_size == 0) {
 		return nullptr;
 	}
 
