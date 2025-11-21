@@ -19,13 +19,18 @@ constexpr u32 MAX_FIRST_POOL_SIZE = KIBIBYTE * 128;
 constexpr u32 MAX_POOL_SIZE = GIBIBYTE * 2;
 constexpr u32 MAX_TABLE_HNDL_COLS = 64;
 constexpr u32 MAX_ALLOC_SLAB_SIZE = 256;
-constexpr u32 PD_ARENA_SIZE = (sizeof(arena_t) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1);
-constexpr u32 PD_POOL_SIZE = (sizeof(memory_pool_t) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1);
-constexpr u32 PD_HEAD_SIZE = (sizeof(pool_header_t) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1);
-constexpr u32 PD_FREE_PH_SIZE = (sizeof(pool_free_node_t) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1);
-constexpr u32 PD_RESERVED_F_SIZE = ((PD_ARENA_SIZE + PD_POOL_SIZE) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1);
+constexpr u32 STRUCT_SIZE_ARENA = sizeof(arena_t);
+constexpr u32 STRUCT_SIZE_POOL = sizeof(memory_pool_t);
+constexpr u32 STRUCT_SIZE_HEADER = sizeof(pool_header_t);
+constexpr u32 STRUCT_SIZE_FREE_NODE = sizeof(pool_free_node_t);
+constexpr u32 DEADZONE_SIZE = sizeof(pool_deadzone_t);
+constexpr u32 RESERVED_FIRST_POOL_SIZE =
+	((STRUCT_SIZE_ARENA + STRUCT_SIZE_POOL) + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1);
 constexpr u32 DEADZONE_PADDING = sizeof(u64);
 constexpr u32 HEAD_DEADZONE = 0xDEADDEADU;
 constexpr u64 POOL_DEADZONE = 0xDEADDEADDEADDEADULL;
+
+static_assert(sizeof(pool_deadzone_t) == sizeof(head_deadzone_t),
+              "error: deadzone sizes do not match!\n");
 
 #endif //ARENA_ALLOCATOR_GLOBALS_H

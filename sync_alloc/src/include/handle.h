@@ -64,9 +64,9 @@ extern handle_table_t *new_handle_table();
 /// @return a _hopefully_ valid Arena Handle. handle->addr will be NULL if it fails.
 extern syn_handle_t create_handle_and_entry(pool_header_t *head);
 
-static constexpr u32 PD_HANDLE_SIZE = (sizeof(syn_handle_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u32 PD_TABLE_SIZE = (sizeof(handle_table_t) + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
-static constexpr u32 PD_HDL_MATRIX_SIZE = ((((PD_HANDLE_SIZE * MAX_TABLE_HNDL_COLS) + PD_TABLE_SIZE))
-                                           + (ALIGNMENT - 1)) & (u16)~(ALIGNMENT - 1);
+static constexpr u32 STRUCT_SIZE_HANDLE = sizeof(syn_handle_t);
+static constexpr u32 STRUCT_SIZE_HANDLE_TABLE = sizeof(handle_table_t);
+static constexpr u32 STRUCT_SIZE_HANDLE_MATRIX =
+	(STRUCT_SIZE_HANDLE * MAX_TABLE_HNDL_COLS) + STRUCT_SIZE_HANDLE_TABLE;
 
 #endif //ARENA_ALLOCATOR_HANDLE_H
