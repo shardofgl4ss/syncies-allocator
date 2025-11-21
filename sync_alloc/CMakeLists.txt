@@ -2,7 +2,7 @@ target_include_directories(sync_alloc PUBLIC include)
 target_include_directories(tester PUBLIC include)
 
 target_sources(sync_alloc
-			   PUBLIC
+			   PRIVATE
 			   sync_alloc.c
 			   PUBLIC
 			   FILE_SET public_headers
