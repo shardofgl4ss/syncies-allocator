@@ -10,7 +10,7 @@ project(arena_allocator C)
 add_executable(tester)
 
 add_library(syn_memops_test STATIC)
-add_library(sync_alloc STATIC)
+add_library(sync_alloc SHARED)
 target_compile_features(sync_alloc PRIVATE c_std_23)
 
 add_subdirectory(sync_alloc)
