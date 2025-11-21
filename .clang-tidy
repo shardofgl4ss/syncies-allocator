@@ -1,0 +1,63 @@
+---
+Checks: '-*,clang-analyzer-*,concurrency-*,performance-*,readability-*,modernize-*,bugprone-*,misc-*,portability-avoid-pragma-once,altera-struct-pack-align,-bugprone-easily-swappable-parameters,-readability-avoid-nested-conditional-operator,-readability-redundant-parentheses,-performance-avoid-endl,-readability-magic-numbers,-bugprone-casting-through-void,-performance-no-int-to-ptr,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,-clang-analyzer-valist.Uninitialized,-clang-analyzer-core.NullDereference,-bugprone-implicit-widening-of-multiplication-result,-readability-implicit-bool-conversion,-readability-math-missing-parentheses'
+HeaderFilterRegex: '.*'
+WarningsAsErrors: '*'
+FormatStyle: llvm
+CheckOptions:
+  # Typedef/Alias
+  - key: readability-identifier-naming.TypeAliasCase
+    value: lower_case
+  - key: readability-identifier-naming.TypedefCase
+    value: lower_case
+  - key: readability-identifier-naming.TypedefSuffix
+    value: _t
+  # Types
+  - key: readability-identifier-naming.StructCase
+    value: Camel_Snake_Case
+  - key: readability-identifier-naming.EnumCase
+    value: Camel_Snake_Case
+  - key: readability-identifier-naming.UnionCase
+    value: Camel_Snake_Case
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.ScopedEnumConstantCase
+    value: UPPER_CASE
+  # Types - Classes/Members
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.ClassConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.ClassMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.ProtectedMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: m_
+  - key: readability-identifier-naming.MemberCase
+    value: lower_case
+  # Functions/Parameters
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  # Macros
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+  # Templates
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+  # Namespaces
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  # Variables
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.LocalConstantCase
+    value: lower_case
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.GlobalConstantPointerCase
+    value: lower_case
+---

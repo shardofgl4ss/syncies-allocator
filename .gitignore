@@ -2,7 +2,5 @@ build/
 build-release/
 .idea/
 .cache/
-.clang-format
-.clang-tidy
 core*
 compile_commands.json

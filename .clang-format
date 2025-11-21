@@ -1,0 +1,115 @@
+# Generated from CLion C/C++ Code Style settings
+---
+BasedOnStyle: LLVM
+
+IndentWidth: 8
+ContinuationIndentWidth: 8
+ColumnLimit: 100
+UseTab: AlignWithSpaces
+AccessModifierOffset: -8
+MaxEmptyLinesToKeep: 2
+
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+#AlignOperands: DontAlign
+AlignOperands: Align
+AlignEscapedNewlines: LeftWithLastLine
+AlignTrailingComments: Leave
+AlignConsecutiveMacros: Consecutive
+AlignConsecutiveBitFields: Consecutive
+AlignAfterOpenBracket: true
+AlignArrayOfStructures: Left
+
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: Automatic
+AlwaysBreakTemplateDeclarations: No
+
+BreakAfterAttributes: Always
+BreakBeforeInlineASMColon: Always
+BreakBeforeBraces: Linux
+BreakBeforeTernaryOperators: true
+BreakBeforeBinaryOperators: None
+BreakBinaryOperations: RespectPrecedence
+BreakAdjacentStringLiterals: true
+BreakConstructorInitializersBeforeComma: false
+
+CommentPragmas: '^(/\\*<|[^ ])'
+OneLineFormatOffRegex: '^\s*#'
+
+InsertBraces: true
+
+LineEnding: LF
+
+IncludeIsMainRegex: '([-_](test|unittest))?$'
+IncludeCategories: 
+- Regex: '^".*'
+  Priority: 0
+  SortPriority: 2
+- Regex: '^<.*'
+  Priority: 0
+  SortPriority: 3
+- Regex: '.*'
+  Priority: 0
+  SortPriority: 4
+
+IndentCaseBlocks: true
+IndentCaseLabels: false
+IndentExportBlock: true
+IndentExternBlock: Indent
+IndentGotoLabels: true
+IndentRequiresClause: false
+
+
+BitFieldColonSpacing: Both
+
+SeparateDefinitionBlocks: Leave
+
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+
+NamespaceIndentation: All
+
+InsertNewlineAtEOF: true
+
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Inline
+AllowShortLoopsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+
+SpaceAfterTemplateKeyword: false
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpaceBeforeParens: ControlStatementsExceptForEachMacros
+SpacesInConditionalStatement: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+
+BinPackArguments: false
+BinPackParameters: OnePerLine
+
+KeepEmptyLines:
+  AtStartOfBlock:  false
+  AtStartOfFile:   false
+  AtEndOfFile:     true
+
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: false
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: true
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: true
+  AfterExternBlock: false
+  BeforeCatch: true
+  BeforeElse: false
+  BeforeLambdaBody: true
+  BeforeWhile: true
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+...
